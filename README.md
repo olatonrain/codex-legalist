@@ -4,7 +4,7 @@
 
 **Codex Legalis** is a multi-agent courtroom simulation built for the **Global AI Hackathon — Track 3: Agent Society**. 
 
-Unlike standard AI tools that simply act as a monolithic legal assistant, Codex Legalis distributes legal labor across **9 specialized Qwen agents**—including a Magistrate, Judge, Prosecutor, Defense Counsel, Witnesses, and a full Jury. These agents debate, object, testify, and deliberate autonomously based on user-provided case facts. The result is a **Shadow Jury Simulation** that computes a mathematically grounded win-probability rather than relying on a single model's arbitrary confidence score.
+Unlike standard AI tools that simply act as a monolithic legal assistant, Codex Legalis distributes legal labor across **11 specialized Qwen agents**—including a Magistrate, Judge, Prosecutor, Defense Counsel, Witnesses, and a full Jury. These agents debate, object, testify, and deliberate autonomously based on user-provided case facts. The result is a **Shadow Jury Simulation** that computes a mathematically grounded win-probability rather than relying on a single model's arbitrary confidence score.
 
 ---
 
@@ -137,7 +137,7 @@ We compared three approaches using identical case facts to demonstrate the value
 **Key Findings:**
 - **Raw LLM**: Simple prompt produces 1-2 sentence verdicts with no evidence citations or adversarial testing
 - **Single-Agent**: One model handling all roles produces structured verdicts but limited analysis and higher hallucination rate
-- **Codex Legalis**: Full adversarial trial with 9 specialized agents produces comprehensive analysis with evidence tracking, witness examination, fact-checking, and shadow jury consensus
+- **Codex Legalis**: Full adversarial trial with 11 specialized agents produces comprehensive analysis with evidence tracking, witness examination, fact-checking, and shadow jury consensus
 
 The multi-agent approach trades speed for **accuracy, transparency, and reliability** — critical in legal reasoning where hallucinations can have serious consequences.
 
@@ -188,8 +188,8 @@ def get_llm(temperature=0.7, model="qwen-plus-latest"):
     return ChatOpenAI(
         model=model,
         temperature=temperature,
-        openai_api_key=os.getenv("QWEN_API_KEY"),
-        openai_api_base="https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+        api_key=os.getenv("QWEN_API_KEY"),
+        base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
     )
 ```
 

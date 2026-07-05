@@ -1101,7 +1101,28 @@ def shadow_jury_node(state: TrialState) -> dict:
             await asyncio.sleep(1)
         return results
 
-    all_verdicts = asyncio.run(run_all())
+    import threading
+
+    all_verdicts = []
+    exception_holder = [None]
+
+    def _run_async():
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                all_verdicts.extend(loop.run_until_complete(run_all()))
+            finally:
+                loop.close()
+        except Exception as exc:
+            exception_holder[0] = exc
+
+    thread = threading.Thread(target=_run_async)
+    thread.start()
+    thread.join()
+
+    if exception_holder[0]:
+        raise exception_holder[0]
     guilty_votes = sum(1 for v in all_verdicts if v["vote"] in ["Guilty", "Liable"])
     not_guilty_votes = sum(1 for v in all_verdicts if v["vote"] in ["Not Guilty", "Not Liable"])
     hung_votes = sum(1 for v in all_verdicts if v["vote"] == "Hung")

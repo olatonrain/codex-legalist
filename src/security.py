@@ -18,8 +18,8 @@ def detect_prompt_injection(text: str) -> bool:
         r"forget everything",
         r"system prompt",
         r"new rule",
-        r"\boverride\b",
-        r"\bbypass\b",
+        r"override (?:safety|content|filter|restrictions|guidelines|protocols)",
+        r"bypass (?:safety|content|filter|restrictions|guidelines|protocols)",
         r"jailbreak",
         r"print (?:your )?instructions",
         r"developer mode"

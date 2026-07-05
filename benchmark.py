@@ -10,7 +10,7 @@ Usage:
 Three approaches tested with identical case facts:
     1. Raw LLM: Simple prompt to Qwen ("What's the verdict?")
     2. Single-Agent: One LLM handles all roles (prosecutor, defense, judge, jury)
-    3. Multi-Agent: Codex Legalis (9 specialized agents + shadow jury)
+    3. Multi-Agent: Codex Legalis (11 specialized agents + shadow jury)
 
 Metrics:
     - Verdict consistency (agreement rate across runs)
@@ -163,22 +163,24 @@ Verdict: [Your verdict]
 Reasoning: [Your reasoning]
 """
     
+    start = time.time()
     response = llm.invoke([
         SystemMessage(content="You are a fair and impartial judge."),
         HumanMessage(content=prompt)
     ])
-    
+    elapsed = time.time() - start
+
     content = response.content
     verdict_match = re.search(r'Verdict:\s*(Guilty|Not Guilty)', content, re.IGNORECASE)
     verdict = verdict_match.group(1) if verdict_match else "Unknown"
-    
+
     return {
         "verdict": verdict,
         "reasoning": content,
         "transcript_length": len(content),
         "hallucinations": count_hallucinations(content, case_description),
         "evidence_citations": count_evidence_citations(content),
-        "time": 0,
+        "time": round(elapsed, 2),
     }
 
 
@@ -205,6 +207,10 @@ def run_multi_agent_trial(case_description: str, use_mock: bool = False) -> Dict
         "excluded_evidence": [],
         "clarifying_questions": [],
         "human_answers": {},
+        "missing_evidence_answers": {},
+        "missing_witnesses_answers": {},
+        "pending_human_question": None,
+        "human_input_buffer": [],
         "witness_queue": [],
         "current_witness": None,
         "examination_phase": None,
@@ -367,7 +373,7 @@ def run_benchmark(case_description: str, num_runs: int = 3, use_mock: bool = Fal
     print(single_results[0]["reasoning"][:500])
     print()
     
-    print("── Codex Legalis Output (9 specialized agents + shadow jury) ──")
+    print("── Codex Legalis Output (11 specialized agents + shadow jury) ──")
     print(f"Verdict: {multi_results[0]['verdict']}")
     print(f"Shadow Jury Consensus: {multi_results[0].get('shadow_jury_consensus', 0):.1%}")
     print(f"Evidence Citations: {multi_results[0]['evidence_citations']}")

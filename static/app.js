@@ -1415,11 +1415,6 @@ async function runLiveStep() {
         saveTrialToDocket();
         setTimeout(() => {
           switchView("verdict");
-          // Auto-switch to benchmark and run live benchmark after verdict
-          setTimeout(() => {
-            switchView("benchmark");
-            runBenchmark(false);
-          }, 3000);
         }, 1000);
       }
     } else {

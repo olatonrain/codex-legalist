@@ -107,7 +107,7 @@ def _transcribe_with_qwen_audio_llm(audio_bytes: bytes, filename: str, model: st
     return (response.choices[0].message.content or "").strip()
 
 
-def generate_speech(text: str, voice: str = "sambert-zhichu-v1") -> bytes:
+def generate_speech(text: str, voice: str = "Cherry") -> bytes:
     """
     Generates speech from text using Qwen-TTS on Qwen Cloud.
     """
