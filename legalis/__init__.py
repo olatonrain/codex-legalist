@@ -1,0 +1,1 @@
+# Legalis – professional package root

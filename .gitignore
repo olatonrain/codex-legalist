@@ -1,0 +1,40 @@
+# ── Secrets ──────────────────────────────────────────────────────
+# Real .env file (never commit this)
+.env
+
+# ── Python ───────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+*.so
+
+# ── Virtual environment ───────────────────────────────────────────
+venv/
+env/
+.venv/
+.env/
+
+# ── Streamlit ─────────────────────────────────────────────────────
+.streamlit/secrets.toml
+
+# ── OS / Editor ──────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# ── Generated output ──────────────────────────────────────────────
+official_court_record.md
+benchmark_results.json
+*.log
+
+# ── Pytest ────────────────────────────────────────────────────────
+.pytest_cache/

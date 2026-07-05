@@ -1,0 +1,2960 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Codex Legalis — Multi-Agent Legal Simulation</title>
+    <meta
+      name="description"
+      content="AI-powered autonomous courtroom simulation with multi-agent prosecution, defense, jury, and fact-checking. Jurisdiction-aware dramatic trial proceedings."
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fontsource/playfair-display@5.0.19/index.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.16/index.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.0.16/index.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      :root {
+        --navy: #1a2a3a;
+        --navy-light: #2c3e50;
+        --gold: #c9a84c;
+        --gold-light: #e5c76b;
+        --bg: #f5f7fa;
+        --card: #ffffff;
+        --border: #e1e8ed;
+        --text: #1a2a3a;
+        --muted: #7f8c8d;
+        --accent: #2980b9;
+        --prosecutor: #c0392b;
+        --defense: #27ae60;
+        --judge: #2c3e50;
+        --witness: #f39c12;
+        --clerk: #8e44ad;
+        --factcheck: #16a085;
+        --archivist: #34495e;
+        --jury: #2980b9;
+        --magistrate: #d35400;
+      }
+      [data-theme="dark"] {
+        --bg: #0a0a0a;
+        --card: #141414;
+        --border: #2a2a2a;
+        --text: #e5e5e5;
+        --muted: #8e8e8e;
+        --accent: #3498db;
+        --navy: #0d1b2a;
+        --navy-light: #1b2838;
+      }
+      body {
+        font-family: "Inter", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        height: 100vh;
+        overflow: hidden;
+        font-size: 14px;
+      }
+      h1,
+      h2,
+      h3,
+      h4 {
+        font-family: "Playfair Display", serif;
+        font-weight: 700;
+      }
+      .mono {
+        font-family: "JetBrains Mono", monospace;
+      }
+
+      /* === TOP NAV === */
+      .topnav {
+        background: linear-gradient(
+          135deg,
+          var(--navy) 0%,
+          var(--navy-light) 100%
+        );
+        color: white;
+        padding: 12px 20px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        border-bottom: 2px solid var(--gold);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        flex-wrap: wrap;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: "Playfair Display", serif;
+        font-size: 20px;
+        font-weight: 700;
+      }
+      .brand i {
+        color: var(--gold);
+        font-size: 24px;
+      }
+      .brand-sub {
+        font-size: 10px;
+        color: var(--gold-light);
+        font-family: "Inter";
+        font-weight: 400;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+      .nav-sep {
+        width: 1px;
+        height: 32px;
+        background: rgba(255, 255, 255, 0.15);
+        flex-shrink: 0;
+      }
+      .nav-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .nav-info .label {
+        font-size: 9px;
+        color: rgba(255, 255, 255, 0.5);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .nav-info .value {
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .nav-right {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .nav-btn {
+        background: var(--card);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+      }
+      .nav-btn:hover {
+        background: var(--gold);
+        color: var(--navy);
+        border-color: var(--gold);
+      }
+      .nav-btn.primary {
+        background: var(--gold);
+        color: var(--navy);
+        border-color: var(--gold);
+      }
+      .nav-btn.primary:hover {
+        background: var(--gold-light);
+      }
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        background: rgba(39, 174, 96, 0.2);
+        color: #58d68d;
+      }
+      .status-badge .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #58d68d;
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+      .mobile-toggle {
+        display: none;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: white;
+        width: 36px;
+        height: 36px;
+        border-radius: 6px;
+        cursor: pointer;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+      }
+
+      /* === LAYOUT === */
+      .layout {
+        display: grid;
+        grid-template-columns: 280px 1fr 320px;
+        grid-template-rows: 1fr 60px;
+        height: calc(100vh - 64px);
+      }
+      .left-panel {
+        background: var(--card);
+        border-right: 1px solid var(--border);
+        overflow-y: auto;
+        padding: 16px;
+        transition: transform 0.3s ease;
+        position: relative;
+      }
+      .main-panel {
+        overflow-y: auto;
+        padding: 20px 24px;
+        background: var(--bg);
+      }
+      .right-panel {
+        background: var(--card);
+        border-left: 1px solid var(--border);
+        overflow-y: auto;
+        padding: 16px;
+        transition: transform 0.3s ease;
+        position: relative;
+      }
+      .bottom-bar {
+        grid-column: 1/-1;
+        background: var(--card);
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 0 24px;
+        gap: 16px;
+      }
+      .drawer-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 90;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      .drawer-backdrop.show {
+        display: block;
+        opacity: 1;
+      }
+      .drawer-close {
+        display: none;
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        cursor: pointer;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        color: var(--text);
+        z-index: 2;
+      }
+
+      /* === LEFT PANEL === */
+      .panel-title {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: var(--muted);
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .panel-title i {
+        color: var(--gold);
+      }
+      .agent-card {
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: var(--bg);
+        margin-bottom: 8px;
+        border-left: 4px solid var(--judge);
+        transition: all 0.2s;
+        cursor: pointer;
+        position: relative;
+      }
+      .agent-card:hover {
+        transform: translateX(2px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+      .agent-card.speaking {
+        background: linear-gradient(
+          90deg,
+          rgba(39, 174, 96, 0.08),
+          transparent
+        );
+      }
+      .agent-card.objecting {
+        background: linear-gradient(
+          90deg,
+          rgba(230, 126, 34, 0.1),
+          transparent
+        );
+      }
+      .agent-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .agent-avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 13px;
+        flex-shrink: 0;
+      }
+      .agent-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .agent-name {
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .agent-role {
+        font-size: 10px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .agent-status {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 10px;
+        font-weight: 600;
+        margin-top: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+      }
+      .st-speaking {
+        background: var(--defense);
+        animation: pulse 1.2s infinite;
+      }
+      .st-idle {
+        background: #bdc3c7;
+      }
+      .st-objecting {
+        background: #e67e22;
+        animation: pulse 0.8s infinite;
+      }
+      .st-voting {
+        background: #8e44ad;
+        animation: pulse 1s infinite;
+      }
+      .st-waiting {
+        background: #3498db;
+      }
+
+      /* === MAIN PANEL === */
+      .phase-tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 20px;
+        background: var(--card);
+        padding: 4px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+      .phase-tabs::-webkit-scrollbar {
+        display: none;
+      }
+      .phase-tab {
+        flex: 1;
+        min-width: fit-content;
+        padding: 10px 14px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        border-radius: 7px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        white-space: nowrap;
+      }
+      .phase-tab:hover {
+        color: var(--text);
+        background: var(--bg);
+      }
+      .phase-tab.active {
+        background: var(--navy);
+        color: white;
+        box-shadow: 0 2px 6px rgba(26, 42, 58, 0.2);
+      }
+      .phase-tab.active i {
+        color: var(--gold);
+      }
+      .view {
+        display: none;
+        animation: fadeIn 0.3s;
+      }
+      .view.active {
+        display: block;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Dashboard */
+      .dash-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 20px;
+      }
+      .stat-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px;
+      }
+      .stat-label {
+        font-size: 11px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+      }
+      .stat-value {
+        font-family: "Playfair Display", serif;
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--navy);
+        margin-top: 4px;
+      }
+      .stat-sub {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+      .stat-sub.up {
+        color: var(--defense);
+      }
+      .case-list {
+        background: var(--card);
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        overflow: hidden;
+      }
+      .case-row {
+        padding: 14px 18px;
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr 80px;
+        gap: 12px;
+        align-items: center;
+        border-bottom: 1px solid var(--border);
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      .case-row:hover {
+        background: var(--bg);
+      }
+      .case-row:last-child {
+        border-bottom: none;
+      }
+      .case-title {
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .case-meta {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+      .case-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 10px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .badge-trial {
+        background: rgba(52, 152, 219, 0.15);
+        color: #2980b9;
+      }
+      .badge-pre {
+        background: rgba(243, 156, 18, 0.15);
+        color: #d68910;
+      }
+      .badge-delib {
+        background: rgba(142, 68, 173, 0.15);
+        color: #8e44ad;
+      }
+      .badge-verdict {
+        background: rgba(39, 174, 96, 0.15);
+        color: #27ae60;
+      }
+      .badge-archive {
+        background: rgba(149, 165, 166, 0.2);
+        color: #7f8c8d;
+      }
+
+      /* Setup Wizard */
+      .wizard {
+        background: var(--card);
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        padding: 28px;
+      }
+      .wizard-steps {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 28px;
+        position: relative;
+      }
+      .wizard-steps::before {
+        content: "";
+        position: absolute;
+        top: 18px;
+        left: 10%;
+        right: 10%;
+        height: 2px;
+        background: var(--border);
+        z-index: 0;
+      }
+      .wstep {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        z-index: 1;
+        flex: 1;
+      }
+      .wstep-circle {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: var(--card);
+        border: 2px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: var(--muted);
+        transition: all 0.3s;
+      }
+      .wstep.done .wstep-circle {
+        background: var(--defense);
+        border-color: var(--defense);
+        color: white;
+      }
+      .wstep.active .wstep-circle {
+        background: var(--navy);
+        border-color: var(--navy);
+        color: var(--gold);
+        box-shadow: 0 0 0 4px rgba(26, 42, 58, 0.1);
+      }
+      .wstep-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .wstep.active .wstep-label,
+      .wstep.done .wstep-label {
+        color: var(--text);
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .form-group.full {
+        grid-column: 1/-1;
+      }
+      .form-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .form-input,
+      .form-select,
+      .form-textarea {
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-family: "Inter", sans-serif;
+        font-size: 13px;
+        background: var(--bg);
+        color: var(--text);
+        transition: all 0.2s;
+        width: 100%;
+      }
+      .form-input:focus,
+      .form-select:focus,
+      .form-textarea:focus {
+        outline: none;
+        border-color: var(--gold);
+        background: var(--card);
+        box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.15);
+      }
+      .form-textarea {
+        resize: vertical;
+        min-height: 80px;
+      }
+      .magistrate-chat {
+        background: var(--bg);
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 16px;
+        max-height: 320px;
+        overflow-y: auto;
+      }
+      .mag-msg {
+        margin-bottom: 12px;
+        display: flex;
+        gap: 10px;
+      }
+      .mag-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--magistrate);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 14px;
+      }
+      .mag-bubble {
+        background: var(--card);
+        padding: 10px 14px;
+        border-radius: 10px;
+        border-top-left-radius: 2px;
+        font-size: 13px;
+        line-height: 1.5;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        flex: 1;
+        color: var(--text);
+      }
+      .mag-bubble .q-num {
+        font-size: 10px;
+        color: var(--magistrate);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      /* Live progress bar */
+      .live-progress-wrap {
+        margin-bottom: 16px;
+      }
+      .live-progress-track {
+        height: 6px;
+        background: var(--border);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .live-progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, var(--gold), var(--gold-light));
+        border-radius: 3px;
+        transition: width 0.5s ease;
+        width: 0%;
+      }
+      .live-progress-label {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 4px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+      }
+
+      /* Trial View */
+      .trial-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .transcript-box {
+        background: var(--card);
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        padding: 16px;
+        max-height: 70vh;
+        overflow-y: auto;
+      }
+      .transcript-box h4 {
+        font-size: 13px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .transcript-box h4 .live {
+        color: var(--defense);
+        font-size: 10px;
+        font-family: "Inter";
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      /* Transcript bubble (court-ui style, used in trial view) */
+      .bubble {
+        padding: 10px 14px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        background: var(--bg);
+        border-left: 4px solid var(--judge);
+        font-size: 13px;
+        line-height: 1.55;
+        animation: slideIn 0.3s;
+      }
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateX(-6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      .bubble .speaker {
+        font-weight: 700;
+        font-size: 12px;
+        margin-bottom: 3px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .bubble .speaker .tag {
+        font-size: 9px;
+        padding: 1px 6px;
+        border-radius: 3px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .bubble.judge {
+        border-left-color: var(--judge);
+      }
+      .bubble.prosecutor {
+        border-left-color: var(--prosecutor);
+      }
+      .bubble.defense {
+        border-left-color: var(--defense);
+      }
+      .bubble.witness {
+        border-left-color: var(--witness);
+      }
+      .bubble.factcheck {
+        border-left-color: var(--factcheck);
+        background: rgba(22, 160, 133, 0.06);
+        font-style: italic;
+      }
+      .bubble.objection {
+        border-left-color: #e67e22;
+        background: rgba(230, 126, 34, 0.08);
+      }
+      .bubble .ruling {
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px dashed rgba(0, 0, 0, 0.1);
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      /* Live transcript uses msg-row style from app.py CSS */
+      .msg-row {
+        display: flex;
+        gap: 0.6rem;
+        padding: 0.55rem 0;
+        border-bottom: 1px solid var(--border);
+        animation: msgIn 0.25s ease-out;
+      }
+      @keyframes msgIn {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .msg-row:last-child {
+        border-bottom: none;
+      }
+      .msg-avatar {
+        width: 28px;
+        height: 28px;
+        flex-shrink: 0;
+        border-radius: 6px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 1px;
+      }
+      .msg-content {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+      }
+      .msg-name {
+        font-size: 0.72rem;
+        font-weight: 600;
+        margin-bottom: 0.15rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .msg-text {
+        font-size: 0.87rem;
+        color: var(--text);
+        line-height: 1.55;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        white-space: pre-wrap;
+      }
+      .av-judge {
+        background: rgba(243, 156, 18, 0.15);
+        color: #d68910;
+      }
+      .av-prosecutor {
+        background: rgba(192, 57, 43, 0.15);
+        color: #c0392b;
+      }
+      .av-defense {
+        background: rgba(39, 174, 96, 0.15);
+        color: #27ae60;
+      }
+      .av-witness {
+        background: rgba(243, 156, 18, 0.15);
+        color: #e67e22;
+      }
+      .av-magistrate {
+        background: rgba(211, 84, 0, 0.15);
+        color: #d35400;
+      }
+      .av-foreperson {
+        background: rgba(142, 68, 173, 0.15);
+        color: #8e44ad;
+      }
+      .av-juror {
+        background: rgba(41, 128, 185, 0.15);
+        color: #2980b9;
+      }
+      .av-checker {
+        background: rgba(22, 160, 133, 0.15);
+        color: #16a085;
+      }
+      .av-system {
+        background: rgba(127, 140, 141, 0.15);
+        color: #7f8c8d;
+      }
+
+      /* Evidence Board */
+      .evidence-board {
+        background: var(--card);
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        padding: 16px;
+      }
+      .evidence-board h4 {
+        font-size: 13px;
+        margin-bottom: 12px;
+      }
+      .evidence-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .evidence-item {
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+      }
+      .evidence-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+      }
+      .evidence-item.excluded {
+        opacity: 0.55;
+      }
+      .evidence-item.excluded::after {
+        content: "EXCLUDED";
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: var(--prosecutor);
+        color: white;
+        font-size: 8px;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 3px;
+        letter-spacing: 0.5px;
+      }
+      .ev-icon {
+        font-size: 22px;
+        color: var(--gold);
+        margin-bottom: 6px;
+      }
+      .ev-title {
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .ev-desc {
+        font-size: 10px;
+        color: var(--muted);
+        margin-top: 3px;
+      }
+
+      /* Deliberation */
+      .jury-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+      .juror-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        position: relative;
+        transition: all 0.3s;
+      }
+      .juror-card.guilty {
+        border-left: 4px solid var(--prosecutor);
+      }
+      .juror-card.not-guilty {
+        border-left: 4px solid var(--defense);
+      }
+      .juror-card.undecided {
+        border-left: 4px solid var(--witness);
+      }
+      .juror-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+      .juror-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--jury);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+      .juror-name {
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .juror-trait {
+        font-size: 10px;
+        color: var(--muted);
+        font-style: italic;
+      }
+      .juror-stance {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 6px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .juror-stance.guilty {
+        color: var(--prosecutor);
+      }
+      .juror-stance.not-guilty {
+        color: var(--defense);
+      }
+      .juror-stance.undecided {
+        color: var(--witness);
+      }
+      .juror-quote {
+        font-size: 11px;
+        color: var(--text);
+        margin-top: 8px;
+        padding: 8px;
+        background: var(--bg);
+        border-radius: 6px;
+        line-height: 1.4;
+        font-style: italic;
+      }
+      .consensus-meter {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+      .meter-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      .meter-label {
+        font-size: 12px;
+        font-weight: 600;
+        width: 100px;
+      }
+      .meter-bar {
+        flex: 1;
+        height: 24px;
+        background: var(--bg);
+        border-radius: 12px;
+        overflow: hidden;
+        display: flex;
+      }
+      .meter-fill {
+        height: 100%;
+        transition: width 0.6s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        color: white;
+      }
+      .meter-fill.g {
+        background: linear-gradient(90deg, var(--prosecutor), #e74c3c);
+      }
+      .meter-fill.ng {
+        background: linear-gradient(90deg, var(--defense), #58d68d);
+      }
+      .meter-fill.u {
+        background: linear-gradient(90deg, var(--witness), #f7dc6f);
+      }
+
+      /* Verdict */
+      .verdict-card {
+        background: linear-gradient(
+          135deg,
+          var(--navy) 0%,
+          var(--navy-light) 100%
+        );
+        color: white;
+        border-radius: 14px;
+        padding: 32px;
+        text-align: center;
+        margin-bottom: 20px;
+        position: relative;
+        overflow: hidden;
+        border: 2px solid var(--gold);
+      }
+      .verdict-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          circle at top,
+          rgba(201, 168, 76, 0.15),
+          transparent 60%
+        );
+      }
+      .verdict-card .verdict-label {
+        font-size: 12px;
+        letter-spacing: 3px;
+        color: var(--gold-light);
+        text-transform: uppercase;
+        margin-bottom: 10px;
+        position: relative;
+      }
+      .verdict-card .verdict-text {
+        font-family: "Playfair Display", serif;
+        font-size: clamp(28px, 5vw, 48px);
+        font-weight: 700;
+        color: var(--gold);
+        position: relative;
+        word-break: break-word;
+        overflow-wrap: break-word;
+      }
+      .verdict-card .verdict-sub {
+        font-size: clamp(11px, 1.5vw, 13px);
+        color: rgba(255, 255, 255, 0.7);
+        margin-top: 10px;
+        position: relative;
+        word-break: break-word;
+      }
+      .verdict-card i.gavel {
+        font-size: 40px;
+        color: var(--gold);
+        margin-bottom: 10px;
+        position: relative;
+      }
+      .analytics-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+      .chart-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px;
+      }
+      .chart-card h4 {
+        font-size: 13px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .chart-card h4 i {
+        color: var(--gold);
+      }
+      .precedent-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px;
+      }
+      .precedent-item {
+        padding: 10px;
+        background: var(--bg);
+        border-radius: 6px;
+        margin-bottom: 8px;
+        border-left: 3px solid var(--gold);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .precedent-item .cite {
+        font-weight: 700;
+        color: var(--navy);
+      }
+
+      /* Right Panel */
+      .right-section {
+        margin-bottom: 20px;
+      }
+      /* obj-item: used in objection history (right panel) */
+      .obj-item {
+        padding: 10px 12px;
+        background: var(--bg);
+        border-radius: 6px;
+        margin-bottom: 8px;
+        font-size: 11px;
+        border-left: 3px solid #e67e22;
+      }
+      .obj-item .obj-who {
+        font-weight: 700;
+        color: var(--prosecutor);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+      }
+      .obj-item .obj-reason {
+        font-size: 11px;
+        color: var(--text);
+        line-height: 1.5;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        margin-bottom: 6px;
+      }
+      .obj-item .obj-ruling {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 4px;
+      }
+      .ruling-result {
+        font-size: 9px;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        background: rgba(39, 174, 96, 0.15);
+        color: var(--defense);
+      }
+      .ruling-result.sustained {
+        background: rgba(192, 57, 43, 0.12);
+        color: var(--prosecutor);
+      }
+      .ruling-result.overruled {
+        background: rgba(39, 174, 96, 0.12);
+        color: var(--defense);
+      }
+      /* Legacy .objection-item kept for compatibility */
+      .objection-item {
+        padding: 10px;
+        background: var(--bg);
+        border-radius: 6px;
+        margin-bottom: 8px;
+        font-size: 11px;
+        border-left: 3px solid #e67e22;
+      }
+      .objection-item .obj-who {
+        font-weight: 700;
+        color: var(--prosecutor);
+        font-size: 10px;
+        text-transform: uppercase;
+      }
+      .objection-item .obj-ruling {
+        margin-top: 4px;
+        font-size: 10px;
+        color: var(--muted);
+      }
+      .objection-item .obj-ruling b {
+        color: var(--defense);
+      }
+      .law-link {
+        display: block;
+        padding: 8px 10px;
+        background: var(--bg);
+        border-radius: 6px;
+        margin-bottom: 6px;
+        font-size: 11px;
+        color: var(--text);
+        text-decoration: none;
+        border-left: 3px solid var(--gold);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .law-link:hover {
+        background: rgba(201, 168, 76, 0.1);
+        transform: translateX(2px);
+      }
+      .law-link .rule {
+        font-weight: 700;
+        color: var(--navy);
+      }
+      .clerk-summary {
+        background: var(--bg);
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 12px;
+        line-height: 1.55;
+        max-height: 180px;
+        overflow-y: auto;
+        border-left: 3px solid var(--clerk);
+      }
+      .speed-control {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px;
+        background: var(--bg);
+        border-radius: 8px;
+        margin-bottom: 10px;
+      }
+      .speed-control label {
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .speed-control input {
+        flex: 1;
+      }
+      .speed-val {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--gold);
+        min-width: 30px;
+        text-align: right;
+      }
+
+      /* Bottom Bar */
+      .timeline {
+        display: flex;
+        align-items: center;
+        flex: 1;
+        gap: 0;
+        position: relative;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+      .timeline::-webkit-scrollbar {
+        display: none;
+      }
+      .tl-step {
+        flex: 1;
+        min-width: fit-content;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .tl-step:hover {
+        background: var(--bg);
+      }
+      .tl-step.active {
+        background: var(--navy);
+        color: white;
+      }
+      .tl-step.done {
+        color: var(--defense);
+      }
+      .tl-step .tl-num {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: var(--bg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+      .tl-step.active .tl-num {
+        background: var(--gold);
+        color: var(--navy);
+      }
+      .tl-step.done .tl-num {
+        background: var(--defense);
+        color: white;
+      }
+      .tl-progress {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        color: var(--muted);
+        padding-left: 16px;
+        border-left: 1px solid var(--border);
+        white-space: nowrap;
+      }
+
+      /* Mobile FABs */
+      .mobile-fab {
+        display: none;
+        position: fixed;
+        z-index: 80;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: var(--navy);
+        color: white;
+        border: 2px solid var(--gold);
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+      }
+      .fab-agents {
+        bottom: 80px;
+        left: 16px;
+      }
+      .fab-context {
+        bottom: 80px;
+        right: 16px;
+      }
+
+      /* Typing cursor */
+      .typing::after {
+        content: "▋";
+        animation: blink 1s infinite;
+        color: var(--gold);
+      }
+      @keyframes blink {
+        0%,
+        50% {
+          opacity: 1;
+        }
+        51%,
+        100% {
+          opacity: 0;
+        }
+      }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #d5dce0;
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #bdc3c7;
+      }
+
+      /* ============= TABLET ============= */
+      @media (max-width: 1024px) {
+        .layout {
+          grid-template-columns: 240px 1fr;
+        }
+        .right-panel {
+          position: fixed;
+          top: 64px;
+          right: 0;
+          bottom: 60px;
+          width: 320px;
+          z-index: 95;
+          transform: translateX(100%);
+          box-shadow: -4px 0 16px rgba(0, 0, 0, 0.1);
+        }
+        .right-panel.open {
+          transform: translateX(0);
+        }
+        .right-panel .drawer-close {
+          display: flex;
+        }
+        .mobile-fab.fab-context {
+          display: flex;
+        }
+        .dash-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .case-row {
+          grid-template-columns: 2fr 1fr 80px;
+        }
+        .case-row > :nth-child(3),
+        .case-row > :nth-child(4) {
+          display: none;
+        }
+        .trial-layout {
+          display: flex;
+          flex-direction: column;
+        }
+        .jury-grid {
+          grid-template-columns: repeat(3, 1fr);
+        }
+        .analytics-grid {
+          grid-template-columns: 1fr;
+        }
+        .nav-info.hide-tablet {
+          display: none;
+        }
+      }
+
+      /* ============= MOBILE ============= */
+      @media (max-width: 768px) {
+        body {
+          font-size: 13px;
+        }
+        .topnav {
+          padding: 10px 14px;
+          gap: 10px;
+        }
+        .brand {
+          font-size: 16px;
+          gap: 8px;
+        }
+        .brand-sub {
+          display: none;
+        }
+        .nav-sep,
+        .nav-info {
+          display: none;
+        }
+        .nav-info.mobile-show {
+          display: flex;
+        }
+        .nav-right .nav-btn span {
+          display: none;
+        }
+        .nav-right .nav-btn {
+          padding: 8px 10px;
+        }
+        .mobile-toggle {
+          display: flex;
+        }
+        .layout {
+          grid-template-columns: 1fr;
+          grid-template-rows: 1fr 54px;
+          height: calc(100vh - 56px);
+        }
+        .left-panel {
+          position: fixed;
+          top: 56px;
+          left: 0;
+          bottom: 54px;
+          width: 85%;
+          max-width: 320px;
+          z-index: 95;
+          transform: translateX(-100%);
+          box-shadow: 4px 0 16px rgba(0, 0, 0, 0.1);
+        }
+        .left-panel.open {
+          transform: translateX(0);
+        }
+        .left-panel .drawer-close {
+          display: flex;
+        }
+        .right-panel {
+          position: fixed;
+          top: 56px;
+          right: 0;
+          bottom: 54px;
+          width: 85%;
+          max-width: 320px;
+          z-index: 95;
+          transform: translateX(100%);
+          box-shadow: -4px 0 16px rgba(0, 0, 0, 0.1);
+        }
+        .right-panel.open {
+          transform: translateX(0);
+        }
+        .right-panel .drawer-close {
+          display: flex;
+        }
+        .main-panel {
+          padding: 14px;
+        }
+        .phase-tabs {
+          margin-bottom: 14px;
+          padding: 3px;
+        }
+        .phase-tab {
+          padding: 8px 10px;
+          font-size: 11px;
+          gap: 5px;
+        }
+        .dash-grid {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 10px;
+        }
+        .stat-value {
+          font-size: 22px;
+        }
+        .case-row {
+          grid-template-columns: 1fr auto;
+          padding: 12px 14px;
+          gap: 8px;
+        }
+        .case-row > :nth-child(3),
+        .case-row > :nth-child(4),
+        .case-row > :nth-child(5) {
+          display: none;
+        }
+        .wizard {
+          padding: 18px;
+        }
+        .trial-layout {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .transcript-box {
+          max-height: 400px;
+          padding: 12px;
+        }
+        .evidence-grid {
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+        }
+        .jury-grid {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 8px;
+        }
+        .analytics-grid {
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        .verdict-card {
+          padding: 24px 16px;
+        }
+        .verdict-card .verdict-text {
+          font-size: 36px;
+        }
+        .bottom-bar {
+          padding: 0 12px;
+          gap: 8px;
+        }
+        .tl-step {
+          padding: 6px 8px;
+          font-size: 10px;
+          gap: 5px;
+        }
+        .tl-progress {
+          display: none;
+        }
+        .mobile-fab {
+          display: flex;
+        }
+      }
+
+      /* === BENCHMARK VIEW === */
+      .benchmark-header {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+      .benchmark-header h3 {
+        font-size: 20px;
+        margin-bottom: 8px;
+        color: var(--text);
+      }
+      .benchmark-header p {
+        font-size: 13px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .benchmark-table-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+      .benchmark-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .benchmark-table thead {
+        background: var(--bg);
+      }
+      .benchmark-table th {
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        color: var(--text);
+        border-bottom: 2px solid var(--border);
+      }
+      .benchmark-table td {
+        padding: 12px;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+      }
+      .benchmark-table tbody tr:hover {
+        background: var(--bg);
+      }
+      .benchmark-highlight {
+        font-weight: 700;
+        color: var(--defense);
+      }
+      .benchmark-warning {
+        color: var(--magistrate);
+      }
+      .benchmark-charts {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+      .bar-chart {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 10px 0;
+      }
+      .bar-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .bar-label {
+        min-width: 100px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .bar-container {
+        flex: 1;
+        background: var(--bg);
+        border-radius: 6px;
+        height: 28px;
+        overflow: hidden;
+        position: relative;
+      }
+      .bar {
+        height: 100%;
+        background: var(--navy);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 8px;
+        transition: width 0.8s ease-out;
+        position: relative;
+      }
+      .bar-success {
+        background: var(--defense);
+      }
+      .bar-warning {
+        background: var(--magistrate);
+      }
+      .bar-danger {
+        background: var(--prosecutor);
+      }
+      .bar-value {
+        font-size: 11px;
+        font-weight: 700;
+        color: white;
+      }
+      .benchmark-samples {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+      .sample-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .sample-card {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+      }
+      .sample-card-success {
+        border-color: var(--defense);
+        border-width: 2px;
+      }
+      .sample-header {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .sample-header i {
+        color: var(--gold);
+      }
+      .sample-content {
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--text);
+        margin-bottom: 12px;
+      }
+      .sample-content ul {
+        margin-left: 16px;
+        margin-top: 8px;
+      }
+      .sample-content li {
+        margin-bottom: 4px;
+      }
+      .sample-meta {
+        display: flex;
+        gap: 12px;
+        font-size: 11px;
+        color: var(--muted);
+        padding-top: 10px;
+        border-top: 1px solid var(--border);
+      }
+      .benchmark-findings {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+      .findings-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+      .finding-card {
+        display: flex;
+        gap: 12px;
+        padding: 12px;
+        background: var(--bg);
+        border-radius: 8px;
+        border: 1px solid var(--border);
+      }
+      .finding-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        flex-shrink: 0;
+      }
+      .finding-content h5 {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 6px;
+      }
+      .finding-content p {
+        font-size: 11px;
+        line-height: 1.5;
+        color: var(--muted);
+      }
+      .benchmark-run {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px;
+      }
+      .run-info p {
+        font-size: 13px;
+        color: var(--text);
+        margin-bottom: 12px;
+      }
+      .code-block {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .code-block code {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .code-comment {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      @media (max-width: 1024px) {
+        .benchmark-charts {
+          grid-template-columns: 1fr;
+        }
+        .sample-grid {
+          grid-template-columns: 1fr;
+        }
+        .findings-grid {
+          grid-template-columns: 1fr;
+        }
+        .benchmark-table {
+          font-size: 12px;
+        }
+        .benchmark-table th,
+        .benchmark-table td {
+          padding: 10px 8px;
+        }
+      }
+      @media (max-width: 768px) {
+        .benchmark-table-card {
+          overflow-x: auto;
+        }
+        .benchmark-table {
+          min-width: 500px;
+        }
+        .bar-label {
+          min-width: 80px;
+          font-size: 11px;
+        }
+        .wizard-steps {
+          gap: 4px;
+        }
+        .wstep-label {
+          font-size: 9px;
+        }
+        .wstep-circle {
+          width: 30px;
+          height: 30px;
+          font-size: 11px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ═══ TOP NAV ═══ -->
+    <div class="topnav">
+      <button class="mobile-toggle" id="menuToggle" aria-label="Menu">
+        <i class="fas fa-bars"></i>
+      </button>
+      <div class="brand">
+        <i class="fas fa-balance-scale"></i>
+        <div>
+          <div>Codex Legalis</div>
+          <div class="brand-sub">Multi-Agent Legal Simulation</div>
+        </div>
+      </div>
+      <div class="nav-sep"></div>
+      <div class="nav-info hide-tablet">
+        <span class="label">Case</span>
+        <span class="value" id="navCaseTitle">—</span>
+      </div>
+      <div class="nav-info hide-tablet">
+        <span class="label">Jurisdiction</span>
+        <span class="value" id="navJurisdiction">—</span>
+      </div>
+      <div class="nav-info">
+        <span class="label">Status</span>
+        <span class="value" id="navStatus"
+          ><span class="status-badge"
+            ><span class="dot"></span>Ready</span
+          ></span
+        >
+      </div>
+      <div class="nav-right">
+        <button class="nav-btn" id="themeToggle" title="Toggle dark mode">
+          <i class="fas fa-moon"></i>
+        </button>
+        <button class="nav-btn" id="pauseBtn">
+          <i class="fas fa-pause"></i><span>Pause</span>
+        </button>
+        <button class="nav-btn" id="exportTopBtn">
+          <i class="fas fa-file-export"></i><span>Export</span>
+        </button>
+        <button class="nav-btn primary" id="newTrialBtn">
+          <i class="fas fa-plus"></i><span>New Trial</span>
+        </button>
+        <button
+          class="nav-btn"
+          id="profileBtn"
+          title="Current courtroom profile"
+          style="
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--gold);
+            color: var(--navy);
+            justify-content: center;
+            padding: 0;
+          "
+        >
+          JP
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══ DRAWER BACKDROP ═══ -->
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+
+    <!-- ═══ MAIN LAYOUT ═══ -->
+    <div class="layout">
+      <!-- ── LEFT PANEL: AGENT ROSTER ── -->
+      <div class="left-panel" id="leftPanel">
+        <button class="drawer-close" data-close="left">
+          <i class="fas fa-times"></i>
+        </button>
+
+        <div class="panel-title">
+          <i class="fas fa-users"></i> Agent Roster (9)
+        </div>
+
+        <div id="agentRosterContainer">
+          <div
+            style="font-size: 0.78rem; color: var(--muted); margin-bottom: 10px"
+          >
+            Agents will appear here when trial begins...
+          </div>
+        </div>
+
+        <!-- Trial Metrics -->
+        <div class="panel-title" style="margin-top: 20px">
+          <i class="fas fa-chart-line"></i> Trial Metrics
+        </div>
+        <div
+          style="
+            background: var(--bg);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 11px;
+          "
+        >
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 6px;
+            "
+          >
+            <span style="color: var(--muted)">Duration</span
+            ><b class="mono" id="metricDuration">00:00:00</b>
+          </div>
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 6px;
+            "
+          >
+            <span style="color: var(--muted)">Utterances</span
+            ><b class="mono" id="metricUtterances">0</b>
+          </div>
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 6px;
+            "
+          >
+            <span style="color: var(--muted)">Objections</span
+            ><b class="mono" id="metricObjections">0</b>
+          </div>
+          <div style="display: flex; justify-content: space-between">
+            <span style="color: var(--muted)">Evidence Admitted</span
+            ><b class="mono" id="metricEvidence">0 / 0</b>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MAIN PANEL ── -->
+      <div class="main-panel">
+        <div class="phase-tabs">
+          <button class="phase-tab" data-view="dashboard">
+            <i class="fas fa-th-large"></i> Dashboard
+          </button>
+          <button class="phase-tab" data-view="setup">
+            <i class="fas fa-magic"></i> Setup
+          </button>
+          <button class="phase-tab" data-view="trial">
+            <i class="fas fa-gavel"></i> Trial
+          </button>
+          <button class="phase-tab" data-view="deliberation">
+            <i class="fas fa-comments"></i> Deliberation
+          </button>
+          <button class="phase-tab" data-view="verdict">
+            <i class="fas fa-scroll"></i> Verdict
+          </button>
+          <button class="phase-tab" data-view="benchmark">
+            <i class="fas fa-chart-line"></i> Benchmark
+          </button>
+        </div>
+
+        <!-- ─ DASHBOARD VIEW ─ -->
+        <div class="view" id="view-dashboard">
+          <div class="dash-grid">
+            <div class="stat-card">
+              <div class="stat-label">Active Cases</div>
+              <div class="stat-value" id="statActiveCases">0</div>
+              <div class="stat-sub" id="statActiveSubtext">No trials yet</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Archived</div>
+              <div class="stat-value" id="statArchived">0</div>
+              <div class="stat-sub">Precedent library</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">LLM Health</div>
+              <div
+                class="stat-value"
+                style="color: var(--defense)"
+                id="statLlmHealth"
+              >
+                —
+              </div>
+              <div class="stat-sub" id="statLlmSub">Checking…</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Version</div>
+              <div class="stat-value mono" style="font-size: 22px">v1.0.0</div>
+              <div class="stat-sub">Build 2026.07.01</div>
+            </div>
+          </div>
+
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 12px;
+              flex-wrap: wrap;
+              gap: 10px;
+            "
+          >
+            <h3 style="font-size: 16px">Case Docket</h3>
+            <button
+              class="nav-btn primary"
+              style="background: var(--gold); color: var(--navy)"
+              onclick="document.querySelector('[data-view=setup]').click()"
+            >
+              <i class="fas fa-plus"></i> Start New Trial
+            </button>
+          </div>
+          <div class="case-list" id="dashboardCaseList">
+            <!-- Cases will be dynamically inserted here -->
+            <div style="padding: 10px; color: var(--muted); font-size: 0.8rem">
+              No past trials available yet.
+            </div>
+          </div>
+        </div>
+
+        <!-- ─ SETUP VIEW ─ -->
+        <div class="view" id="view-setup">
+          <div class="wizard">
+            <div class="wizard-steps" id="wizardSteps">
+              <div class="wstep" id="wstep1">
+                <div class="wstep-circle">1</div>
+                <div class="wstep-label">Case Details</div>
+              </div>
+              <div class="wstep" id="wstep2">
+                <div class="wstep-circle">2</div>
+                <div class="wstep-label">Magistrate Conf.</div>
+              </div>
+              <div class="wstep" id="wstep3">
+                <div class="wstep-circle">3</div>
+                <div class="wstep-label">Review</div>
+              </div>
+            </div>
+
+            <h3 style="font-size: 18px; margin-bottom: 4px">New Trial Setup</h3>
+            <p
+              style="font-size: 12px; color: var(--muted); margin-bottom: 16px"
+            >
+              Upload a case brief or paste facts. The Magistrate agent will ask
+              clarifying questions before opening the court.
+            </p>
+
+            <div class="form-grid">
+              <div class="form-group full">
+                <label class="form-label">Case Title</label>
+                <input
+                  id="caseTitleInput"
+                  type="text"
+                  class="form-input"
+                  placeholder="e.g. State v. Marcus Webb"
+                />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Country / Jurisdiction</label>
+                <select id="countrySelect" class="form-select"></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Case Type</label>
+                <select id="caseTypeSelect" class="form-select">
+                  <option value="Criminal">Criminal</option>
+                  <option value="Civil">Civil</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Shadow Juries</label>
+                <select id="shadowJuriesSelect" class="form-select">
+                  <option value="5">5 juries (faster)</option>
+                  <option value="10">10 juries</option>
+                  <option value="20" selected>20 juries (default)</option>
+                  <option value="50">50 juries (thorough)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Jury Panel Size</label>
+                <select id="juryCountSelect" class="form-select">
+                  <option value="6">6 jurors</option>
+                  <option value="9">9 jurors</option>
+                  <option value="12" selected>12 jurors (default)</option>
+                  <option value="15">15 jurors</option>
+                </select>
+              </div>
+              <div
+                class="form-group full"
+                id="jxSummaryWrap"
+                style="
+                  font-size: 0.78rem;
+                  color: var(--muted);
+                  padding: 8px 12px;
+                  background: var(--bg);
+                  border-radius: 6px;
+                  line-height: 1.7;
+                "
+              >
+                <div id="jxSummary">
+                  Select a country to see jurisdiction details.
+                </div>
+              </div>
+
+              <!-- ── Unified Case Facts Input ── -->
+              <div class="form-group full">
+                <label class="form-label">Case Facts</label>
+                <div
+                  style="
+                    border: 1px solid var(--border);
+                    border-radius: 10px;
+                    background: var(--card);
+                    overflow: hidden;
+                  "
+                >
+                  <textarea
+                    id="caseTextarea"
+                    style="
+                      width: 100%;
+                      min-height: 130px;
+                      border: none;
+                      outline: none;
+                      resize: vertical;
+                      padding: 12px 14px;
+                      font-family: &quot;Inter&quot;, sans-serif;
+                      font-size: 13px;
+                      color: var(--text);
+                      background: transparent;
+                      line-height: 1.6;
+                    "
+                    placeholder="Describe the case — paste facts, evidence, or witness names here…"
+                  ></textarea>
+                  <div
+                    style="
+                      display: flex;
+                      align-items: center;
+                      gap: 8px;
+                      padding: 8px 12px;
+                      border-top: 1px solid var(--border);
+                      background: var(--bg);
+                    "
+                  >
+                    <label
+                      title="Attach document (PDF, DOCX, TXT)"
+                      style="
+                        cursor: pointer;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 5px;
+                        font-size: 11px;
+                        color: var(--muted);
+                        padding: 4px 8px;
+                        border-radius: 6px;
+                        border: 1px solid var(--border);
+                        background: var(--card);
+                        transition: all 0.2s;
+                      "
+                      onmouseover="this.style.color = 'var(--gold)'"
+                      onmouseout="this.style.color = 'var(--muted)'"
+                    >
+                      <i class="fas fa-paperclip"></i> Attach File
+                      <input
+                        type="file"
+                        id="uploadZone"
+                        accept=".pdf,.docx,.txt"
+                        style="display: none"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      id="recordAudioBtn"
+                      title="Record what happened and transcribe it"
+                      style="
+                        cursor: pointer;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 5px;
+                        font-size: 11px;
+                        color: var(--muted);
+                        padding: 4px 8px;
+                        border-radius: 6px;
+                        border: 1px solid var(--border);
+                        background: var(--card);
+                        transition: all 0.2s;
+                      "
+                    >
+                      <i class="fas fa-microphone"></i> Record Voice
+                    </button>
+                    <label
+                      title="Upload an existing audio recording"
+                      style="
+                        cursor: pointer;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 5px;
+                        font-size: 11px;
+                        color: var(--muted);
+                        padding: 4px 8px;
+                        border-radius: 6px;
+                        border: 1px solid var(--border);
+                        background: var(--card);
+                        transition: all 0.2s;
+                      "
+                      onmouseover="this.style.color = 'var(--gold)'"
+                      onmouseout="this.style.color = 'var(--muted)'"
+                    >
+                      <i class="fas fa-file-audio"></i> Audio File
+                      <input
+                        type="file"
+                        id="audioUploadInput"
+                        accept="audio/*"
+                        style="display: none"
+                      />
+                    </label>
+                    <span
+                      id="uploadInfo"
+                      style="
+                        font-size: 11px;
+                        color: var(--defense);
+                        margin-left: 4px;
+                      "
+                    ></span>
+                    <span
+                      id="audioUploadInfo"
+                      style="
+                        font-size: 11px;
+                        color: var(--defense);
+                        margin-left: 4px;
+                      "
+                    ></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Magistrate Chat (injected by JS) -->
+            <div
+              class="magistrate-chat"
+              id="magistrateChat"
+              style="display: none"
+            >
+              <!-- Q&A rendered by app.js renderPreTrialForm() -->
+            </div>
+
+            <!-- Review Step (injected by JS) -->
+            <div
+              class="review-step"
+              id="reviewStep"
+              style="display: none"
+            >
+              <!-- Review summary rendered by app.js renderReviewStep() -->
+            </div>
+
+            <div
+              style="
+                margin-top: 20px;
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+              "
+            >
+              <button
+                id="beginTrialBtn"
+                class="nav-btn primary"
+                style="
+                  flex: 1;
+                  min-width: 140px;
+                  justify-content: center;
+                  background: var(--navy);
+                  color: white;
+                  padding: 12px;
+                "
+              >
+                <i class="fas fa-arrow-right"></i> Next
+              </button>
+            </div>
+
+            <!-- Demo shortcuts -->
+            <div
+              style="
+                margin-top: 24px;
+                padding-top: 20px;
+                border-top: 1px solid var(--border);
+              "
+            >
+              <div
+                style="
+                  font-size: 11px;
+                  font-weight: 700;
+                  color: var(--muted);
+                  text-transform: uppercase;
+                  letter-spacing: 1px;
+                  margin-bottom: 10px;
+                "
+              >
+                <i class="fas fa-bolt" style="color: var(--gold)"></i> Demo
+                Cases (no API key needed)
+              </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap">
+                <button
+                  id="demoTheft"
+                  class="nav-btn"
+                  style="
+                    background: var(--bg);
+                    color: var(--text);
+                    border: 1px solid var(--border);
+                  "
+                >
+                  <i class="fas fa-car"></i> State v. Webb · Theft
+                </button>
+                <button
+                  id="demoContract"
+                  class="nav-btn"
+                  style="
+                    background: var(--bg);
+                    color: var(--text);
+                    border: 1px solid var(--border);
+                  "
+                >
+                  <i class="fas fa-file-contract"></i> Nexus v. Aether · NDA
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─ TRIAL VIEW ─ -->
+        <div class="view" id="view-trial">
+          <div class="trial-layout">
+            <!-- Live Transcript -->
+            <div class="transcript-box" id="transcriptBox">
+              <h4>
+                <i class="fas fa-stream" style="color: var(--gold)"></i> Live
+                Transcript
+                <span class="live">● LIVE</span>
+                <span
+                  id="liveProgressLabel"
+                  style="
+                    margin-left: 8px;
+                    font-size: 10px;
+                    font-family: &quot;JetBrains Mono&quot;;
+                    color: var(--accent);
+                    font-weight: 600;
+                  "
+                >Opening Statements</span>
+                <span
+                  id="transcriptCount"
+                  style="
+                    margin-left: auto;
+                    font-size: 10px;
+                    font-family: &quot;JetBrains Mono&quot;;
+                    color: var(--muted);
+                    font-weight: 400;
+                  "
+                ></span>
+              </h4>
+              <div id="transcriptBody">
+                <!-- Messages injected by app.js -->
+                <div
+                  style="
+                    text-align: center;
+                    padding: 40px 20px;
+                    color: var(--muted);
+                    font-size: 13px;
+                  "
+                >
+                  <i
+                    class="fas fa-balance-scale"
+                    style="
+                      font-size: 32px;
+                      color: var(--gold);
+                      margin-bottom: 12px;
+                      display: block;
+                    "
+                  ></i>
+                  No trial in session.<br />Load a demo or start a new trial in
+                  Setup.
+                </div>
+              </div>
+            </div>
+
+            <!-- Right column: Evidence + Chart -->
+            <div>
+              <div class="evidence-board" style="margin-bottom: 16px">
+                <h4>
+                  <i class="fas fa-folder-open" style="color: var(--gold)"></i>
+                  Evidence Board
+                </h4>
+                <div class="evidence-grid" id="evidenceGrid">
+                  <div
+                    style="
+                      font-size: 0.8rem;
+                      color: var(--muted);
+                      grid-column: 1/-1;
+                    "
+                  >
+                    No exhibits yet.
+                  </div>
+                </div>
+              </div>
+              <div class="chart-card">
+                <h4><i class="fas fa-chart-bar"></i> Case Strength (Live)</h4>
+                <div id="mini-chart" style="height: 140px"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─ DELIBERATION VIEW ─ -->
+        <div class="view" id="view-deliberation">
+          <div class="consensus-meter">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 12px;
+                flex-wrap: wrap;
+                gap: 8px;
+              "
+            >
+              <h4 style="font-size: 14px">
+                <i class="fas fa-vote-yea" style="color: var(--gold)"></i> Jury
+                Consensus
+                <span id="deliberationLiveBadge" style="display:none;margin-left:8px;font-size:10px;font-family:Inter;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--defense)">● LIVE</span>
+              </h4>
+              <span
+                class="mono"
+                id="deliberationClock"
+                style="font-size: 12px; color: var(--muted)"
+                >Awaiting deliberation</span
+              >
+            </div>
+            <div id="consensusRows">
+              <div style="font-size: 0.8rem; color: var(--muted)">
+                No live deliberation or shadow jury result yet.
+              </div>
+            </div>
+          </div>
+          <div id="benchNotice" style="display: none; background: rgba(230, 126, 34, 0.1); border: 1px solid var(--defense); padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+            <h4 style="color: var(--defense); margin: 0 0 8px 0; font-size: 14px;"><i class="fas fa-balance-scale"></i> Bench Trial Jurisdiction</h4>
+            <div style="font-size: 0.9rem; line-height: 1.5; color: var(--text);">
+              This jurisdiction does not use jury trials. The verdict will be rendered by the presiding judge acting as the sole finder of fact.
+            </div>
+          </div>
+          <h4 style="font-size: 14px; margin-bottom: 12px" id="juryPanelHeaderWrapper">
+            <i class="fas fa-users" style="color: var(--gold)"></i>
+            <span id="juryPanelHeader">Jury Panel</span>
+          </h4>
+          <div class="jury-grid" id="juryGrid"></div>
+          <div class="chart-card">
+            <h4><i class="fas fa-comments"></i> Deliberation Transcript</h4>
+            <div
+              id="deliberationTranscriptContainer"
+              style="max-height: 220px; overflow-y: auto"
+            >
+              <!-- Rendered by app.js -->
+              <div
+                style="font-size: 0.8rem; color: var(--muted); padding: 10px"
+              >
+                Awaiting deliberation phase.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─ VERDICT VIEW ─ -->
+        <div class="view" id="view-verdict">
+          <div class="verdict-card">
+            <i class="fas fa-gavel gavel"></i>
+            <div class="verdict-label">Verdict of the Jury</div>
+            <div class="verdict-text" id="verdictText">—</div>
+            <div class="verdict-sub" id="verdictSub">Awaiting verdict…</div>
+          </div>
+          
+          <div class="chart-card" style="margin-top: 20px;">
+            <h4><i class="fas fa-users-cog"></i> Shadow Jury Room</h4>
+            <div style="font-size:0.75rem;color:var(--muted);margin-bottom:10px;line-height:1.4;padding:8px;background:var(--bg);border-radius:6px;">
+              <i class="fas fa-info-circle" style="color:var(--gold);margin-right:4px;"></i>
+              Shadow juries are independent simulated juries that evaluate the same evidence to test verdict reliability. They run in parallel to validate the main jury's decision.
+            </div>
+            <div id="shadowJuryNarrative" style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
+              <div style="font-size: 0.8rem; color: var(--muted); padding: 10px;">
+                Awaiting shadow jury deliberation...
+              </div>
+            </div>
+          </div>
+          
+          <div class="analytics-grid">
+            <div class="chart-card">
+              <h4>
+                <i class="fas fa-tachometer-alt"></i> Win Likelihood (Shadow
+                Jury)
+              </h4>
+              <div style="text-align: center; padding: 20px 0">
+                <div
+                  style="
+                    font-size: 3rem;
+                    font-weight: 700;
+                    letter-spacing: -2px;
+                  "
+                  id="gaugeNumber"
+                >
+                  —
+                </div>
+                <div
+                  style="
+                    font-size: 0.7rem;
+                    color: var(--muted);
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    margin-top: 4px;
+                  "
+                  id="gaugeSub"
+                >
+                  Run a trial to see results
+                </div>
+              </div>
+              <div id="gaugeChart" style="height: 220px"></div>
+            </div>
+            <div class="chart-card">
+              <h4><i class="fas fa-th"></i> Sensitivity Heatmap</h4>
+              <div id="heatmapChart" style="height: 220px"></div>
+            </div>
+          </div>
+          <div class="analytics-grid">
+            <div class="chart-card">
+              <h4>
+                <i class="fas fa-chart-bar"></i> Shadow Jury Vote Distribution
+              </h4>
+              <div id="voteChart" style="height: 200px"></div>
+            </div>
+            <div class="precedent-card">
+              <h4>
+                <i class="fas fa-archive" style="color: var(--gold)"></i> Case
+                Record
+              </h4>
+              <div id="caseRecordSummary">
+                <div class="precedent-item">
+                  Run a live trial to populate the final record.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─ BENCHMARK VIEW ─ -->
+        <div class="view" id="view-benchmark">
+          <div class="benchmark-header">
+            <h3><i class="fas fa-chart-line" style="color: var(--gold)"></i> Agent Society Benchmark</h3>
+            <p>Comparing three approaches using identical case facts to demonstrate the value of adversarial multi-agent collaboration</p>
+          </div>
+
+          <!-- Run Benchmark Button -->
+          <div class="benchmark-run" style="margin-bottom:20px;">
+            <h4 style="margin-bottom: 12px;"><i class="fas fa-play"></i> Run Benchmark</h4>
+            <div class="run-info">
+              <p id="benchmarkStatus">Run a benchmark to compare Raw LLM vs Single-Agent vs Codex Legalis using the current case facts.</p>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+                <button id="runBenchmarkBtn" class="nav-btn primary" style="background:var(--navy);color:white;">
+                  <i class="fas fa-flask"></i> Run Benchmark (Mock)
+                </button>
+                <button id="runBenchmarkLiveBtn" class="nav-btn" style="background:var(--bg);color:var(--text);border:1px solid var(--border);">
+                  <i class="fas fa-bolt"></i> Run Live (API Calls)
+                </button>
+              </div>
+              <div style="margin-top:12px;font-size:0.75rem;color:var(--muted);">
+                <div class="code-block" style="margin-bottom:4px;">
+                  <code>python benchmark.py --mock</code>
+                  <span class="code-comment"># CLI alternative</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Comparison Table -->
+          <div class="benchmark-table-card" id="benchmarkTableCard" style="display:none;">
+            <h4 style="margin-bottom: 12px;"><i class="fas fa-table"></i> Performance Comparison</h4>
+            <table class="benchmark-table">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>Raw LLM</th>
+                  <th>Single-Agent</th>
+                  <th>Codex Legalis</th>
+                </tr>
+              </thead>
+              <tbody id="benchmarkTableBody">
+                <tr>
+                  <td>Evidence Citations</td>
+                  <td id="benchRawCitations">—</td>
+                  <td id="benchSingleCitations">—</td>
+                  <td id="benchMultiCitations" class="benchmark-highlight">—</td>
+                </tr>
+                <tr>
+                  <td>Hallucinations</td>
+                  <td id="benchRawHalluc" class="benchmark-warning">—</td>
+                  <td id="benchSingleHalluc">—</td>
+                  <td id="benchMultiHalluc" class="benchmark-highlight">—</td>
+                </tr>
+                <tr>
+                  <td>Verdict Consistency</td>
+                  <td id="benchRawConsistency">N/A</td>
+                  <td id="benchSingleConsistency">—</td>
+                  <td id="benchMultiConsistency" class="benchmark-highlight">—</td>
+                </tr>
+                <tr>
+                  <td>Shadow Jury Consensus</td>
+                  <td id="benchRawShadow">N/A</td>
+                  <td id="benchSingleShadow">N/A</td>
+                  <td id="benchMultiShadow" class="benchmark-highlight">—</td>
+                </tr>
+                <tr>
+                  <td>Response Time</td>
+                  <td id="benchRawTime" class="benchmark-highlight">—</td>
+                  <td id="benchSingleTime">—</td>
+                  <td id="benchMultiTime">—</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Visual Charts -->
+          <div class="benchmark-charts" id="benchmarkCharts" style="display:none;">
+            <div class="chart-card">
+              <h4><i class="fas fa-quote-right"></i> Evidence Citations</h4>
+              <div class="bar-chart" id="benchCitationsChart"></div>
+            </div>
+
+            <div class="chart-card">
+              <h4><i class="fas fa-exclamation-triangle"></i> Hallucinations (Lower is Better)</h4>
+              <div class="bar-chart" id="benchHallucChart"></div>
+            </div>
+          </div>
+
+          <!-- Sample Responses -->
+          <div class="benchmark-samples" id="benchmarkSamples" style="display:none;">
+            <h4 style="margin-bottom: 12px;"><i class="fas fa-comment-dots"></i> Sample Responses</h4>
+            <div class="sample-grid">
+              <div class="sample-card">
+                <div class="sample-header">
+                  <i class="fas fa-robot"></i> Raw LLM Response
+                </div>
+                <div class="sample-content" id="benchRawSample">
+                  Awaiting benchmark results...
+                </div>
+                <div class="sample-meta" id="benchRawMeta">
+                  <span>—</span>
+                </div>
+              </div>
+
+              <div class="sample-card sample-card-success">
+                <div class="sample-header">
+                  <i class="fas fa-balance-scale"></i> Codex Legalis Output
+                </div>
+                <div class="sample-content" id="benchMultiSample">
+                  Awaiting benchmark results...
+                </div>
+                <div class="sample-meta" id="benchMultiMeta">
+                  <span>—</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Key Findings -->
+          <div class="benchmark-findings">
+            <h4 style="margin-bottom: 12px;"><i class="fas fa-lightbulb"></i> Key Findings</h4>
+            <div class="findings-grid">
+              <div class="finding-card">
+                <div class="finding-icon" style="background: var(--prosecutor);">
+                  <i class="fas fa-times"></i>
+                </div>
+                <div class="finding-content">
+                  <h5>Raw LLM</h5>
+                  <p>Simple prompt produces 1-2 sentence verdicts with no evidence citations or adversarial testing. High hallucination rate.</p>
+                </div>
+              </div>
+              <div class="finding-card">
+                <div class="finding-icon" style="background: var(--magistrate);">
+                  <i class="fas fa-exclamation"></i>
+                </div>
+                <div class="finding-content">
+                  <h5>Single-Agent</h5>
+                  <p>One model handling all roles produces structured verdicts but limited analysis. Moderate hallucination rate.</p>
+                </div>
+              </div>
+              <div class="finding-card">
+                <div class="finding-icon" style="background: var(--defense);">
+                  <i class="fas fa-check"></i>
+                </div>
+                <div class="finding-content">
+                  <h5>Codex Legalis</h5>
+                  <p>Full adversarial trial with 9 specialized agents produces comprehensive analysis with zero hallucinations and high verdict consistency.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- /main-panel -->
+
+      <!-- ── RIGHT PANEL: CONTEXT ── -->
+      <!-- hidden until trial starts; JS will set display:block on switchView('trial') -->
+      <div class="right-panel" id="rightPanel" style="display: none">
+        <button class="drawer-close" data-close="right">
+          <i class="fas fa-times"></i>
+        </button>
+
+        <div class="right-section">
+          <div class="panel-title">
+            <i class="fas fa-ban"></i> Objection History
+          </div>
+          <div id="objectionHistoryContainer">
+            <div style="font-size: 0.78rem; color: var(--muted)">
+              No objections yet.
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="right-section"
+          id="legalReferenceSection"
+          style="display: none"
+        >
+          <div class="panel-title">
+            <i class="fas fa-book"></i> Legal Reference
+          </div>
+          <div id="legalReferenceLinks"></div>
+        </div>
+
+        <div class="right-section">
+          <div class="panel-title">
+            <i class="fas fa-clipboard-list"></i> Clerk's Summary
+          </div>
+          <div class="clerk-summary" id="clerkSummary">
+            <p><b>Status:</b> Awaiting trial commencement.</p>
+          </div>
+        </div>
+
+        <div class="right-section">
+          <div class="panel-title">
+            <i class="fas fa-sliders-h"></i> Controls
+          </div>
+          <div class="speed-control">
+            <label>Speed</label>
+            <input
+              type="range"
+              min="0.5"
+              max="3"
+              step="0.1"
+              value="1"
+              id="speedSlider"
+            />
+            <span class="speed-val" id="speedVal">1.0x</span>
+          </div>
+          <button
+            class="nav-btn primary"
+            id="exportReportBtn"
+            style="
+              width: 100%;
+              justify-content: center;
+              background: var(--gold);
+              color: var(--navy);
+              margin-top: 8px;
+            "
+          >
+            <i class="fas fa-file-pdf"></i> Export Report
+          </button>
+          <button
+            class="nav-btn"
+            id="playBriefBtn"
+            style="width: 100%; justify-content: center; margin-top: 8px"
+          >
+            <i class="fas fa-volume-up"></i> Play Audio Brief
+          </button>
+        </div>
+      </div>
+      <!-- /right-panel -->
+
+      <!-- ── BOTTOM BAR ── -->
+      <div class="bottom-bar">
+        <div class="timeline">
+          <div class="tl-step done" data-view="dashboard">
+            <span class="tl-num"
+              ><i class="fas fa-check" style="font-size: 9px"></i></span
+            ><span>Dashboard</span>
+          </div>
+          <div class="tl-step done" data-view="setup">
+            <span class="tl-num"
+              ><i class="fas fa-check" style="font-size: 9px"></i></span
+            ><span>Setup</span>
+          </div>
+          <div class="tl-step active" data-view="trial">
+            <span class="tl-num">3</span><span>Trial</span>
+          </div>
+          <div class="tl-step" data-view="deliberation">
+            <span class="tl-num">4</span><span>Deliberation</span>
+          </div>
+          <div class="tl-step" data-view="verdict">
+            <span class="tl-num">5</span><span>Verdict</span>
+          </div>
+        </div>
+        <div class="tl-progress">Phase 3 of 5 · 47%</div>
+      </div>
+    </div>
+    <!-- /layout -->
+
+    <!-- ── MOBILE FAB ── -->
+    <button
+      class="mobile-fab fab-agents"
+      id="fabAgents"
+      aria-label="Show agents"
+    >
+      <i class="fas fa-users"></i>
+    </button>
+    <button
+      class="mobile-fab fab-context"
+      id="fabContext"
+      aria-label="Show context"
+    >
+      <i class="fas fa-ellipsis-v"></i>
+    </button>
+
+    <!-- ── App Script ── -->
+    <script src="/static/app.js"></script>
+  </body>
+</html>
