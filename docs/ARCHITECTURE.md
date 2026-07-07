@@ -3,7 +3,8 @@
 ## System Diagram
 
 ```mermaid
-flowchart TD
+graph TD
+
     subgraph FRONTEND["Frontend — Browser"]
         UI["index.html + static/app.js<br/>Vanilla HTML / CSS / JS"]
     end
@@ -20,7 +21,6 @@ flowchart TD
     end
 
     subgraph AGENTS["Agent Society — 11 Specialised Qwen Agents"]
-        direction LR
         MAG["Magistrate<br/>qwen-max"]
         JUD["Judge<br/>qwen-max"]
         PROS["Prosecutor<br/>qwen-plus-latest"]
@@ -45,10 +45,10 @@ flowchart TD
     API --> UPLOAD
     API --> RUNNER
     RUNNER --> GRAPH
-    GRAPH --> AGENTS
+    GRAPH --> MAG
     UPLOAD -->|"Audio bytes"| AUDIO
-    AGENTS -->|"HTTPS · OpenAI-compatible API"| CHAT
-    AGENTS -->|"Audio transcription"| AUDIO
+    MAG -->|"HTTPS · OpenAI-compatible API"| CHAT
+    MAG -->|"Audio transcription"| AUDIO
 ```
 
 ## Tech Stack
