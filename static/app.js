@@ -112,6 +112,16 @@ const AV_CLASS = {
 const $ = id => document.getElementById(id);
 const $$ = sel => document.querySelectorAll(sel);
 
+/** Safely parse a fetch Response as JSON, throwing the raw text on parse failure. */
+async function safeJson(res) {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(text.slice(0, 500));
+  }
+}
+
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -137,7 +147,7 @@ document.addEventListener("DOMContentLoaded", () => {
 async function checkApiHealth() {
   try {
     const res = await fetch("/api/health");
-    const data = await res.json();
+    const data = await safeJson(res);
     const el   = $("statLlmHealth");
     const sub  = $("statLlmSub");
     if (el)  { el.textContent = "✓ OK"; el.style.color = "var(--defense)"; }
@@ -574,7 +584,7 @@ let JX_DATA = {};
 async function loadJurisdictions() {
   try {
     const res = await fetch("/api/jurisdictions");
-    const data = await res.json();
+    const data = await safeJson(res);
     JX_DATA = data.data || {};
     const sel = $("countrySelect");
     if (sel) {
@@ -632,7 +642,7 @@ function initSetupForm() {
       
       try {
         const res = await fetch("/api/upload_audio", { method: "POST", body: formData });
-        const data = await res.json();
+        const data = await safeJson(res);
         if (res.ok) {
           appendCaseText(data.text);
           audioInfo.textContent = `Transcribed ${data.char_count} chars from ${data.filename}`;
@@ -833,7 +843,7 @@ async function transcribeRecordedAudio() {
   if (info) info.textContent = "Transcribing recording...";
   try {
     const res = await fetch("/api/upload_audio", { method: "POST", body: fd });
-    const data = await res.json();
+    const data = await safeJson(res);
     if (!res.ok) throw new Error(data.detail || "Transcription failed");
     appendCaseText(data.text);
     if (info) {
@@ -865,7 +875,7 @@ function initCaseTabs() {
           info.style.color = "var(--defense)";
         }
         const res = await fetch("/api/upload", { method: "POST", body: fd });
-        const data = await res.json();
+        const data = await safeJson(res);
         if (!res.ok) throw new Error(data.detail || "Upload failed");
         State.uploadedText = [State.uploadedText, data.text || ""].filter(Boolean).join("\n\n");
         State.uploadedFiles.push(file.name);
@@ -1112,7 +1122,7 @@ async function handleAudioRecording(btn, statusEl, textarea) {
       
       try {
         const res = await fetch("/api/upload_audio", { method: "POST", body: fd });
-        const data = await res.json();
+        const data = await safeJson(res);
         if (res.ok) {
           if (textarea) {
             textarea.value = textarea.value.trim() 
@@ -1313,7 +1323,7 @@ async function launchLiveTrial(skip) {
         jury_count:    State.juryCount,
       }),
     });
-    const data = await res.json();
+    const data = await safeJson(res);
     if (!res.ok) throw new Error(data.detail || "Trial start failed");
     State.graphState   = data.graph_state;
     State.liveStep     = "opening";
@@ -1428,7 +1438,7 @@ async function runBenchmark(useMock) {
     });
     clearTimeout(timeoutId);
     
-    const data = await res.json();
+    const data = await safeJson(res);
     if (!res.ok) throw new Error(data.detail || "Benchmark failed");
     
     State.benchmarkData = data;
@@ -1467,7 +1477,7 @@ async function loadDemo(key) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ demo_key: key, shadow_juries: State.shadowJuries }),
     });
-    const data = await res.json();
+    const data = await safeJson(res);
     if (!res.ok) throw new Error(data.detail || "Demo load failed");
 
     State.demoScript  = data.script || [];
@@ -1732,7 +1742,7 @@ async function runLiveStep() {
         graph_state: State.graphState,
       }),
     });
-    const data = await res.json();
+    const data = await safeJson(res);
     if (!res.ok) {
       throw new Error(data.detail || "Trial step failed.");
     }
@@ -1767,14 +1777,6 @@ async function runLiveStep() {
     renderClerkSummary();
     renderMotionRulings();
     renderDiscoverySummary();
-
-    // Build live deliberation snapshot during jury_deliberation phase
-    if (data.current_step === "jury_deliberation" || State.liveStep === "jury_deliberation") {
-      const liveSnapshot = buildLiveDeliberationSnapshot();
-      if (liveSnapshot && (!State.graphState.deliberation_snapshot || !State.graphState.deliberation_snapshot.positions?.length)) {
-        State.graphState.deliberation_snapshot = liveSnapshot;
-      }
-    }
 
     // Update shadow jury narrative when shadow_jury step completes
     if (data.current_step === "shadow_jury" || State.liveStep === "shadow_jury") {
@@ -1890,7 +1892,7 @@ function showHumanInputDialog(question) {
           answer: answer,
         }),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (!res.ok) throw new Error(data.detail || "Failed to submit answer");
       
       State.graphState = data.graph_state;
@@ -2156,6 +2158,8 @@ function renderVerdictView(vd) {
     if (gSub)  gSub.textContent = "Run a trial to see results";
     const sentCard = $("sentencingCard");
     if (sentCard) sentCard.style.display = "none";
+    const actualJuryCard = $("actualJuryCard");
+    if (actualJuryCard) actualJuryCard.style.display = "none";
     renderVerdictCharts(null);
     renderCaseRecordSummary();
     renderShadowJuryConversation();
@@ -2165,7 +2169,6 @@ function renderVerdictView(vd) {
   const upper = verdict.toUpperCase();
   const isDefense = upper.includes("NOT GUILTY") || upper.includes("NOT LIABLE");
   const color  = isDefense ? "#30d158" : "#ff453a";
-  const pct    = Math.round(((vd.probability ?? 0) || 0) * 100);
 
   const vText = $("verdictText");
   const vSub  = $("verdictSub");
@@ -2188,11 +2191,72 @@ function renderVerdictView(vd) {
     }
   }
 
+  const actualJury = vd.actual_jury || {};
+  const actualJuryCard = $("actualJuryCard");
+  if (actualJuryCard && actualJury.total) {
+    actualJuryCard.style.display = "";
+    const burdenMet = actualJury.guilty_or_liable_count || 0;
+    const burdenNot = actualJury.not_guilty_or_not_liable_count || 0;
+    const undecided = actualJury.undecided_count || 0;
+    const total = actualJury.total;
+    const caseType = State.graphState?.case_type || "Criminal";
+    const metLabel = caseType === "Civil" ? "Liable" : "Guilty";
+    const notMetLabel = caseType === "Civil" ? "Not Liable" : "Not Guilty";
+
+    const breakdownEl = $("juryVoteBreakdown");
+    if (breakdownEl) {
+      const pctMet = Math.round((burdenMet / total) * 100);
+      const pctNot = Math.round((burdenNot / total) * 100);
+      const pctUnd = Math.round((undecided / total) * 100);
+      breakdownEl.innerHTML = `
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+          <div style="flex:1;min-width:100px;padding:10px;background:rgba(192,57,43,0.1);border-radius:6px;text-align:center;">
+            <div style="font-size:1.5rem;font-weight:700;color:var(--prosecutor);">${burdenMet}</div>
+            <div style="font-size:0.75rem;color:var(--muted);">${metLabel} (${pctMet}%)</div>
+          </div>
+          <div style="flex:1;min-width:100px;padding:10px;background:rgba(39,174,96,0.1);border-radius:6px;text-align:center;">
+            <div style="font-size:1.5rem;font-weight:700;color:var(--defense);">${burdenNot}</div>
+            <div style="font-size:0.75rem;color:var(--muted);">${notMetLabel} (${pctNot}%)</div>
+          </div>
+          ${undecided > 0 ? `
+          <div style="flex:1;min-width:100px;padding:10px;background:rgba(243,156,18,0.1);border-radius:6px;text-align:center;">
+            <div style="font-size:1.5rem;font-weight:700;color:var(--witness);">${undecided}</div>
+            <div style="font-size:0.75rem;color:var(--muted);">Undecided (${pctUnd}%)</div>
+          </div>` : ""}
+        </div>
+        <div style="font-size:0.75rem;color:var(--muted);">
+          ${actualJury.type === "bench" ? "Bench trial" : `Jury deliberation (${actualJury.round || 1} round${actualJury.round !== 1 ? "s" : ""})`}
+          · ${total} juror${total !== 1 ? "s" : ""}
+        </div>
+      `;
+    }
+
+    const rationaleEl = $("forepersonRationale");
+    if (rationaleEl) {
+      const rationale = actualJury.rationale || "";
+      rationaleEl.innerHTML = rationale
+        ? `<i class="fas fa-quote-left" style="color:var(--gold);margin-right:6px;font-size:0.7rem;"></i>${escapeHtml(rationale)}`
+        : "";
+      rationaleEl.style.display = rationale ? "" : "none";
+    }
+  } else if (actualJuryCard) {
+    actualJuryCard.style.display = "none";
+  }
+
   const gNum  = $("gaugeNumber");
   const gSub  = $("gaugeSub");
+  const pct = actualJury.total
+    ? Math.round(((actualJury.guilty_or_liable_count || 0) / actualJury.total) * 100)
+    : Math.round(((vd.probability ?? 0) || 0) * 100);
   const sjr = State.graphState?.shadow_jury_results || {};
   if (gNum)  { gNum.textContent = pct + "%"; gNum.style.color = pct < 50 ? "#0a84ff" : pct < 75 ? "#ff9f0a" : "#ff453a"; }
-  if (gSub)  gSub.textContent = `${sjr.burden_met_votes ?? sjr.guilty_votes ?? 0} of ${vd.juries || sjr.total_juries || State.shadowJuries || 0} shadow juries found burden met`;
+  if (gSub)  {
+    if (actualJury.total) {
+      gSub.textContent = `${actualJury.guilty_or_liable_count || 0} of ${actualJury.total} jurors found burden met`;
+    } else {
+      gSub.textContent = `${sjr.burden_met_votes ?? sjr.guilty_votes ?? 0} of ${vd.juries || sjr.total_juries || State.shadowJuries || 0} shadow juries found burden met`;
+    }
+  }
 
   renderVerdictCharts(pct);
   renderCaseRecordSummary();
@@ -2451,20 +2515,23 @@ function renderVerdictCharts(pct = null) {
   // Vote bar
   const voteChart = $("voteChart");
   if (voteChart) {
+    const actualJury = State.verdictData?.actual_jury || {};
     const sjr = State.graphState?.shadow_jury_results || {};
-    const total = State.verdictData?.juries || sjr.total_juries || State.shadowJuries || 0;
-    const guilty  = sjr.guilty_votes ?? Math.round((value / 100) * total);
-    const ng      = sjr.not_guilty_votes ?? (hasVerdict ? Math.max(total - guilty, 0) : 0);
-    const hung    = sjr.hung_votes ?? 0;
+    const useActual = actualJury.total > 0;
+    const total = useActual ? actualJury.total : (State.verdictData?.juries || sjr.total_juries || State.shadowJuries || 0);
+    const guilty  = useActual ? (actualJury.guilty_or_liable_count || 0) : (sjr.guilty_votes ?? Math.round((value / 100) * total));
+    const ng      = useActual ? (actualJury.not_guilty_or_not_liable_count || 0) : (sjr.not_guilty_votes ?? (hasVerdict ? Math.max(total - guilty, 0) : 0));
+    const hung    = useActual ? (actualJury.undecided_count || 0) : (sjr.hung_votes ?? 0);
+    const chartTitle = useActual ? "Jury Vote Distribution" : "Shadow Jury Vote Distribution";
     Plotly.newPlot(voteChart, [{
-      x: ["Burden Met","Burden Not Met","Hung/Errors"], y: [guilty, ng, hung],
+      x: ["Burden Met","Burden Not Met","Undecided"], y: [guilty, ng, hung],
       type: "bar", marker: { color: ["#C0392B","#27AE60","#F39C12"] },
       text: [guilty, ng, hung], textposition: "outside",
       textfont: { family: "JetBrains Mono", size: isMobile ? 10 : 12, color: "#1A2A3A" },
     }], {
       margin: { t: 20, r: 10, b: 40, l: 35 },
       xaxis: { tickfont: { size: isMobile ? 10 : 11, family: "Inter" } },
-      yaxis: { tickfont: { size: 10, family: "JetBrains Mono" }, title: { text: isMobile ? "" : "Shadow Juries", font: { size: 10 } } },
+      yaxis: { tickfont: { size: 10, family: "JetBrains Mono" }, title: { text: isMobile ? "" : (useActual ? "Jurors" : "Shadow Juries"), font: { size: 10 } } },
       paper_bgcolor: "transparent", plot_bgcolor: "transparent", showlegend: false,
     }, { responsive: true, displayModeBar: false });
   }
@@ -2479,13 +2546,26 @@ function renderJuryGrid() {
   const profiles = State.graphState?.jury_profiles || [];
   const positions = snapshot.positions || [];
   const jurors = positions.length
-    ? positions.map((position, index) => ({
-        n: position.juror_id || index + 1,
-        name: position.name || `Juror ${position.juror_id || index + 1}`,
-        trait: [position.occupation, position.persona].filter(Boolean).join(" · ") || "Deliberation",
-        stance: classifyStance(position.stance || position.quote),
-        quote: position.quote || position.bias || "",
-      }))
+    ? positions.map((position, index) => {
+        const backendStance = (position.stance || "").toUpperCase();
+        let stance;
+        if (backendStance.includes("NOT GUILTY") || backendStance.includes("NOT LIABLE")) {
+          stance = "not-guilty";
+        } else if (backendStance.includes("GUILTY") || backendStance.includes("LIABLE")) {
+          stance = "guilty";
+        } else if (backendStance.includes("UNDECIDED") || backendStance.includes("HUNG")) {
+          stance = "undecided";
+        } else {
+          stance = classifyStance(position.quote || position.stance);
+        }
+        return {
+          n: position.juror_id || index + 1,
+          name: position.name || `Juror ${position.juror_id || index + 1}`,
+          trait: [position.occupation, position.persona].filter(Boolean).join(" · ") || "Deliberation",
+          stance: stance,
+          quote: position.quote || position.bias || "",
+        };
+      })
     : profiles.map((profile, index) => ({
         n: profile.juror_id || index + 1,
         name: profile.name || `Juror ${profile.juror_id || index + 1}`,

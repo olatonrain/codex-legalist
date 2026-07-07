@@ -242,7 +242,7 @@ def run_magistrate(req: MagistrateRequest):
             "identified_evidence": identified_evidence,
         }
     except Exception as exc:
-        logger.error(f"[magistrate] Error: {exc}")
+        logger.error(f"[magistrate] Error: {exc}", exc_info=True)
         return _magistrate_fallback(req.case_text)
 
 
@@ -396,7 +396,7 @@ def trial_start(req: TrialStartRequest):
             from src.nodes import generate_dynamic_jury_profiles
             graph_state["jury_profiles"] = generate_dynamic_jury_profiles(graph_state)
         except Exception as exc:
-            logger.error(f"[trial_start] Jury profile generation skipped: {exc}")
+            logger.error(f"[trial_start] Jury profile generation skipped: {exc}", exc_info=True)
             graph_state.setdefault("errors", []).append(f"Jury profile generation failed: {exc}")
 
     return {
@@ -502,24 +502,52 @@ def trial_step(req: TrialStepRequest):
 
     if next_step == "done":
         sjr       = new_state.get("shadow_jury_results", {})
+        snapshot  = new_state.get("deliberation_snapshot", {})
         verdict_str = new_state.get("main_verdict") or "No Verdict Reached"
-        if sjr.get("total_juries"):
+
+        actual_jury = {
+            "verdict": verdict_str,
+            "type": snapshot.get("type", "unknown"),
+            "round": snapshot.get("round", 0),
+            "total": snapshot.get("total", 0),
+            "guilty_or_liable_count": snapshot.get("guilty_or_liable_count", 0),
+            "not_guilty_or_not_liable_count": snapshot.get("not_guilty_or_not_liable_count", 0),
+            "undecided_count": snapshot.get("undecided_count", 0),
+            "rationale": snapshot.get("rationale", ""),
+            "positions": snapshot.get("positions", []),
+        }
+
+        if snapshot.get("total"):
+            total_actual = snapshot["total"]
+            burden_met = snapshot.get("guilty_or_liable_count", 0)
+            burden_not = snapshot.get("not_guilty_or_not_liable_count", 0)
+            undecided = snapshot.get("undecided_count", 0)
+            win_prob = burden_met / total_actual if total_actual > 0 else 0.0
+            sensitivity = (
+                f"The jury voted {burden_met}-{burden_not}"
+                + (f" with {undecided} undecided" if undecided > 0 else "")
+                + f". {snapshot.get('rationale', '')}"
+            )
+        elif sjr.get("total_juries"):
             win_prob  = sjr.get("win_probability", 0.5)
-            total_j   = sjr.get("total_juries", 20)
+            total_actual = sjr.get("total_juries", 20)
             burden_met = sjr.get("burden_met_votes", 0)
             sensitivity = (
-                f"{burden_met} of {total_j} shadow juries found the evidence met the burden of proof. "
+                f"{burden_met} of {total_actual} shadow juries found the evidence met the burden of proof. "
                 + ("The defence successfully raised doubt." if win_prob < 0.5 else "The prosecution's evidence was compelling.")
             )
         else:
             win_prob  = 0.0 if verdict_str in ("Not Guilty", "Not Liable") else 1.0
-            total_j   = 0
-            sensitivity = "No-case submission or early termination — shadow jury analysis was not reached."
+            total_actual = 0
+            sensitivity = "No-case submission or early termination — no jury analysis was reached."
+
         response["verdict_data"] = {
             "verdict":     verdict_str,
             "probability": win_prob,
             "sensitivity": sensitivity,
-            "juries":      total_j,
+            "juries":      total_actual,
+            "actual_jury": actual_jury,
+            "shadow_jury": sjr if sjr else None,
         }
         sentence_data = new_state.get("sentence")
         if sentence_data:

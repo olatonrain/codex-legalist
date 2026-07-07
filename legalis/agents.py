@@ -155,7 +155,7 @@ def generate_dramatic_opening(
             return entries
 
     except Exception as exc:
-        logger.error(f"[generate_dramatic_opening] LLM failed: {exc} — using fallback")
+        logger.error(f"[generate_dramatic_opening] LLM failed: {exc} — using fallback", exc_info=True)
 
     # ── Static fallback ──────────────────────────────────────────────────────
     return [
@@ -299,7 +299,7 @@ def run_trial_step(live_step: str, graph_state: dict) -> tuple[list[dict], dict,
         result = node_fn(graph_state)
     except Exception as node_exc:
         error_text = f"[Phase error in {_STEP_LABELS.get(live_step, live_step)}] {node_exc}"
-        logger.error(error_text)
+        logger.error(error_text, exc_info=True)
         phase_label = _STEP_LABELS.get(live_step, live_step)
         next_step = _next_step_after(live_step, graph_state)
         messages = [{"agent": "System", "text": error_text, "phase": phase_label}]

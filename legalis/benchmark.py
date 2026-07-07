@@ -27,6 +27,10 @@ import time
 from typing import Dict, List
 from langchain_core.messages import AIMessage
 
+from src.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 def extract_facts(text: str) -> set:
     """Extract key facts from text using improved extraction."""
@@ -107,7 +111,11 @@ def run_raw_llm_query(case_description: str, use_mock: bool = False) -> Dict:
     from src.llm import get_llm
     from langchain_core.messages import HumanMessage
     
-    llm = get_llm(temperature=0.3, model="qwen-plus-latest")
+    try:
+        llm = get_llm(temperature=0.3, model="qwen-plus-latest")
+    except Exception as exc:
+        logger.error("Failed to init LLM in run_raw_llm_query: %s", exc, exc_info=True)
+        return {"response": f"Error: {exc}", "hallucinations": 0, "evidence_citations": 0, "time": 0}
     
     prompt = f"""Case facts:
 
@@ -116,7 +124,12 @@ def run_raw_llm_query(case_description: str, use_mock: bool = False) -> Dict:
 What's the verdict? Provide only the verdict and brief reasoning based strictly on the facts provided."""
     
     start = time.time()
-    response = llm.invoke([HumanMessage(content=prompt)])
+    try:
+        response = llm.invoke([HumanMessage(content=prompt)])
+    except Exception as exc:
+        logger.error("LLM invoke failed in run_raw_llm_query: %s", exc, exc_info=True)
+        elapsed = time.time() - start
+        return {"response": f"Error: {exc}", "hallucinations": 0, "evidence_citations": 0, "time": elapsed}
     elapsed = time.time() - start
     content = response.content
     
@@ -145,7 +158,11 @@ def run_single_agent_trial(case_description: str, use_mock: bool = False) -> Dic
     from src.llm import get_llm
     from langchain_core.messages import SystemMessage, HumanMessage
     
-    llm = get_llm(temperature=0.3, model="qwen-plus-latest")
+    try:
+        llm = get_llm(temperature=0.3, model="qwen-plus-latest")
+    except Exception as exc:
+        logger.error("Failed to init LLM in run_single_agent_trial: %s", exc, exc_info=True)
+        return {"verdict": "Error", "reasoning": f"Error: {exc}", "transcript_length": 0, "hallucinations": 0, "evidence_citations": 0, "time": 0}
     
     prompt = f"""You are a judge in a criminal trial. The case facts are:
 
@@ -163,10 +180,15 @@ Reasoning: [Your reasoning]
 """
     
     start = time.time()
-    response = llm.invoke([
-        SystemMessage(content="You are a fair and impartial judge."),
-        HumanMessage(content=prompt)
-    ])
+    try:
+        response = llm.invoke([
+            SystemMessage(content="You are a fair and impartial judge."),
+            HumanMessage(content=prompt)
+        ])
+    except Exception as exc:
+        logger.error("LLM invoke failed in run_single_agent_trial: %s", exc, exc_info=True)
+        elapsed = time.time() - start
+        return {"verdict": "Error", "reasoning": f"Error: {exc}", "transcript_length": 0, "hallucinations": 0, "evidence_citations": 0, "time": round(elapsed, 2)}
     elapsed = time.time() - start
 
     content = response.content

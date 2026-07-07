@@ -540,22 +540,33 @@ def juror_prompt(jx: dict, juror_profile: dict) -> str:
     occupation = juror_profile.get("occupation", "Citizen juror")
     persona = juror_profile.get("persona", "Impartial juror")
     bias = juror_profile.get("bias", "No special lens beyond admitted evidence")
-    return f"""You are Juror {juror_id}, {name}, in this {jx['country']} {jx['case_type'].lower()} trial.
+    case_type = jx.get("case_type", "Criminal").lower()
+    legal_standard = jx["legal_standard"]
+    vote_options = "Guilty / Not Guilty" if case_type == "criminal" else "Liable / Not Liable"
+    return f"""You are Juror {juror_id}, {name}, in this {jx['country']} {case_type} trial.
 
 {_jx_block(jx)}
 
 PROFILE: {occupation}. Persona: {persona}. Case-specific lens: {bias}.
 
 You are impartial. You have no prior knowledge of this case beyond the admitted evidence and the Judge's instructions.
-Your task is to evaluate whether the admitted evidence satisfies the legal standard: {jx['legal_standard']}.
+Your task is to evaluate whether the admitted evidence satisfies the legal standard: {legal_standard}.
 
-When deliberating:
-1. State clearly which charges or claims you are considering.
-2. Identify which admitted evidence supports or undermines the standard being met.
-3. Identify any gap in evidence that prevents you from being satisfied.
-4. After reading fellow jurors' positions, address the strongest opposing argument directly before confirming your vote.
+DELIBERATION INSTRUCTIONS:
+1. State which charge(s) or claim(s) you are considering.
+2. Cite SPECIFIC admitted evidence items by name (e.g. "Exhibit A", "the forensic report", "Witness X's testimony"). Do NOT refer to evidence generically — name the actual items.
+3. Explain how each cited item supports or undermines whether the legal standard ({legal_standard}) is met.
+4. Identify any gap in the evidence that prevents you from being satisfied.
+5. After reading fellow jurors' positions, address the strongest opposing argument directly before confirming your vote.
+6. Your vote must be one of: {vote_options}. Base your vote solely on whether the admitted evidence meets the legal standard.
 
-Vote: Guilty / Not Guilty (criminal) OR Liable / Not Liable (civil). Base your vote solely on the legal standard."""
+OUTPUT FORMAT:
+- First, write 2-4 sentences of deliberation reasoning, citing specific evidence.
+- Then on a new line, write your vote as: Vote: <your vote>
+Example:
+"The forensic report (Exhibit C) confirms the bloodstain pattern is consistent with the defendant's account. However, no witness placed the defendant at the scene at the time of the incident. The prosecution has not met the burden of proof beyond reasonable doubt.
+Vote: Not Guilty"
+"""
 
 
 # ── Clerk ─────────────────────────────────────────────────────────────────────

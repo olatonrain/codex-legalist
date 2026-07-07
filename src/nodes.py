@@ -139,8 +139,8 @@ def _strip_ruling_preamble(rationale: str, ruling: str) -> str:
 _JUROR_MODEL_POOL = [
     AGENT_MODELS["Magistrate"],       # qwen-max
     AGENT_MODELS["Prosecutor"],       # qwen-plus-latest
-    AGENT_MODELS["Witness"],          # qwen-flash
-    AGENT_MODELS["Archivist"],        # qwen-turbo-latest
+    AGENT_MODELS["Jury Foreperson"],  # qwen-plus-latest
+    AGENT_MODELS["Defense Counsel"],  # qwen-plus-latest
 ]
 
 
@@ -217,7 +217,8 @@ def _insufficient_record_evidence(jx: dict) -> dict:
 
 def _get_jx(state: TrialState) -> dict:
     """Extracts jurisdiction context from state into the dict used by prompts."""
-    case_type = state.get("case_type", "Criminal")
+    case_type_raw = state.get("case_type", "Criminal")
+    case_type = case_type_raw.title() if isinstance(case_type_raw, str) else "Criminal"
     country   = state.get("country", DEFAULT_COUNTRY)
     return {
         "country":       country,
@@ -229,11 +230,11 @@ def _get_jx(state: TrialState) -> dict:
             if case_type == "Criminal"
             else state.get("civil_standard", "Balance of probabilities")
         ),
-        "evidence_rules": state.get("evidence_rules", "Applicable rules of evidence"),
-        "jury_enabled":  state.get("jury_enabled", True),
-        "jury_profiles": state.get("jury_profiles", []),
+        "evidence_rules": state.get("evidence_rules", "Evidence Act 2011; Administration of Criminal Justice Act 2015 (ACJA)"),
+        "jury_enabled":  state.get("jury_enabled", False),
+        "jury_profiles": state.get("jury_profiles") or [],
         "cross":         state.get("cross_examination", True),
-        "address":       state.get("court_address", "Your Honour"),
+        "address":       state.get("court_address", "My Lord / Your Lordship"),
     }
 
 
@@ -253,8 +254,8 @@ def generate_dynamic_jury_profiles(state: TrialState) -> list[dict]:
     facts = state.get("case_description", "")
     admitted = state.get("admitted_evidence", [])
     fact_sheet = state.get("fact_sheet", "")
-    llm = get_structured_llm(JuryPanelOutput, temperature=0.4, model=AGENT_MODELS["Jury Foreperson"])
     try:
+        llm = get_structured_llm(JuryPanelOutput, temperature=0.4, model=AGENT_MODELS["Jury Foreperson"])
         result = llm.invoke([
             SystemMessage(content=p.jury_panel_prompt(jx, n)),
             HumanMessage(content=(
@@ -282,7 +283,7 @@ def generate_dynamic_jury_profiles(state: TrialState) -> list[dict]:
             profile["model"] = random.choice(_JUROR_MODEL_POOL)
         return profiles
     except Exception as e:
-        logger.error(f"Jury Profile Generation Error: {e}")
+        logger.error(f"Jury Profile Generation Error: {e}", exc_info=True)
         fallback_profiles = [
             {
                 "juror_id": juror_id,
@@ -310,7 +311,7 @@ def security_check_node(state: TrialState) -> dict:
     for text in texts_to_scan:
         if detect_prompt_injection(text):
             err = "[CONTEMPT OF COURT] Malicious input detected. Trial aborted."
-            logger.error(err)
+            logger.error(err, exc_info=True)
             return {"errors": [err]}
     return {"errors": []}
 
@@ -474,7 +475,7 @@ def magistrate_node(state: TrialState) -> dict:
             "identified_evidence": identified_evidence,
         }
     except Exception as e:
-        logger.error(f"Magistrate Error: {e}")
+        logger.error(f"Magistrate Error: {e}", exc_info=True)
         # Try regex fallback for everything
         case_description = state.get("case_description", "")
         return {
@@ -515,8 +516,8 @@ def _clerk_compression(state: TrialState) -> dict:
     )
     if not transcript_str:
         return {}
-    llm = get_structured_llm(ClerkOutput, temperature=0.1, model=AGENT_MODELS["Clerk"])
     try:
+        llm = get_structured_llm(ClerkOutput, temperature=0.1, model=AGENT_MODELS["Clerk"])
         res = llm.invoke([
             SystemMessage(content=p.clerk_prompt(jx)),
             HumanMessage(content=(
@@ -530,7 +531,7 @@ def _clerk_compression(state: TrialState) -> dict:
             "excluded_evidence": res.excluded_evidence,
         }
     except Exception as e:
-        logger.error(f"Clerk compression error: {e}")
+        logger.error(f"Clerk compression error: {e}", exc_info=True)
         return {}
 
 
@@ -585,7 +586,7 @@ def opening_statements_node(state: TrialState) -> dict:
             AIMessage(content=def_msg.content, name="Defense Counsel"),
         ]}
     except Exception as e:
-        logger.error(f"Opening Statements Error: {e}")
+        logger.error(f"Opening Statements Error: {e}", exc_info=True)
         return {"transcript": [
             AIMessage(content=f"[Opening statements could not be generated: {e}]", name="System"),
         ]}
@@ -625,7 +626,7 @@ def _issue_structured_objection(llm, prompt_func, jx: dict, evidence_text: str, 
         ])
         return obj
     except Exception as e:
-        logger.error(f"Structured objection error: {e}")
+        logger.error(f"Structured objection error: {e}", exc_info=True)
         return ObjectionOutput(objection_type="relevance", rule_cited=jx["evidence_rules"], rationale="Objection — the evidence is not relevant.")
 
 
@@ -717,7 +718,7 @@ def evidence_node(state: TrialState) -> dict:
             ))
         ])
     except Exception as e:
-        logger.error(f"Evidence objection decision error (defence): {e}")
+        logger.error(f"Evidence objection decision error (defence): {e}", exc_info=True)
         def_decision = EvidenceObjectionDecision(should_object=False)
 
     if def_decision.should_object and def_decision.objection_type:
@@ -792,7 +793,7 @@ def evidence_node(state: TrialState) -> dict:
             ))
         ])
     except Exception as e:
-        logger.error(f"Evidence objection decision error (prosecution): {e}")
+        logger.error(f"Evidence objection decision error (prosecution): {e}", exc_info=True)
         pros_decision = EvidenceObjectionDecision(should_object=False)
 
     if pros_decision.should_object and pros_decision.objection_type:
@@ -893,7 +894,7 @@ def discovery_node(state: TrialState) -> dict:
             "disclosed_defense": list(def_disc.items),
         }
     except Exception as e:
-        logger.error(f"Discovery Error: {e}")
+        logger.error(f"Discovery Error: {e}", exc_info=True)
         return {"transcript": [
             AIMessage(content=f"[Discovery could not be completed: {e}]", name="System"),
         ]}
@@ -1025,7 +1026,7 @@ def motion_practice_node(state: TrialState) -> dict:
 
         return {"transcript": transcript, "motion_rulings": motion_log}
     except Exception as e:
-        logger.error(f"Motion Practice Error: {e}")
+        logger.error(f"Motion Practice Error: {e}", exc_info=True)
         return {"transcript": [
             AIMessage(content=f"[Motion practice could not be completed: {e}]", name="System"),
         ]}
@@ -1131,7 +1132,7 @@ def _qualify_expert(
         ))
         return ruling.qualified
     except Exception as e:
-        logger.error(f"Expert qualification error: {e}")
+        logger.error(f"Expert qualification error: {e}", exc_info=True)
         transcript.append(AIMessage(
             content=f"Expert qualification could not be completed: {e}",
             name="System",
@@ -1215,7 +1216,7 @@ def _ask_with_objection_gate(
         data = _parse_json_robustly(text)
         obj = ExaminationObjection(**{k: v for k, v in data.items() if hasattr(ExaminationObjection, k)})
     except Exception as e:
-        logger.error(f"Objection check error in {phase_type}: {e}")
+        logger.error(f"Objection check error in {phase_type}: {e}", exc_info=True)
         obj = ExaminationObjection(should_object=False)
 
     question_struck = False
@@ -1238,7 +1239,7 @@ def _ask_with_objection_gate(
                 ))
             ])
         except Exception as e:
-            logger.error(f"Judge ruling error in {phase_type}: {e}")
+            logger.error(f"Judge ruling error in {phase_type}: {e}", exc_info=True)
             transcript.append(AIMessage(content="[Judge ruling unavailable — the question stands]", name="System"))
         else:
             objection_log.append({
@@ -1281,7 +1282,7 @@ def _ask_with_objection_gate(
             ))
         ])
     except Exception as e:
-        logger.error(f"Witness LLM error in {phase_type}: {e}")
+        logger.error(f"Witness LLM error in {phase_type}: {e}", exc_info=True)
         transcript.append(AIMessage(content="[Witness could not respond]", name="System"))
         return
 
@@ -1399,7 +1400,7 @@ def _examination_loop(
                 ))
             ])
         except Exception as e:
-            logger.error(f"Examiner LLM error in {phase_type} Q{q_num}: {e}")
+            logger.error(f"Examiner LLM error in {phase_type} Q{q_num}: {e}", exc_info=True)
             transcript.append(AIMessage(content=f"[Examiner error — proceeding to next witness]", name="System"))
             break
 
@@ -1427,7 +1428,7 @@ def _examination_loop(
                 data = _parse_json_robustly(text)
                 obj = ExaminationObjection(**{k: v for k, v in data.items() if hasattr(ExaminationObjection, k)})
             except Exception as e:
-                logger.error(f"Opposing counsel objection check error in {phase_type}: {e}")
+                logger.error(f"Opposing counsel objection check error in {phase_type}: {e}", exc_info=True)
 
             if not obj.should_object:
                 key = f"{phase_type}_{opposing_name}"
@@ -1454,7 +1455,7 @@ def _examination_loop(
                         ))
                     ])
                 except Exception as e:
-                    logger.error(f"Judge ruling error in {phase_type}: {e}")
+                    logger.error(f"Judge ruling error in {phase_type}: {e}", exc_info=True)
                     transcript.append(AIMessage(content="[Judge ruling unavailable — objection noted but question stands]", name="System"))
                     q_num += 1
                     sustained_in_a_row = 0
@@ -1509,7 +1510,7 @@ def _examination_loop(
                 ))
             ])
         except Exception as e:
-            logger.error(f"Witness LLM error in {phase_type} Q{q_num}: {e}")
+            logger.error(f"Witness LLM error in {phase_type} Q{q_num}: {e}", exc_info=True)
             transcript.append(AIMessage(content="[Witness could not respond — continuing]", name="System"))
             q_num += 1
             sustained_in_a_row = 0
@@ -1521,7 +1522,7 @@ def _examination_loop(
                 HumanMessage(content=f"Case facts:\n{facts}\n\nWitness answer:\n{a.content}")
             ])
         except Exception as e:
-            logger.error(f"Fact checker error in {phase_type} Q{q_num}: {e}")
+            logger.error(f"Fact checker error in {phase_type} Q{q_num}: {e}", exc_info=True)
             transcript.append(AIMessage(content=a.content, name="Witness"))
             qa_log.append({"q": content, "a": a.content})
             q_num += 1
@@ -1541,7 +1542,7 @@ def _examination_loop(
                     ))
                 ])
             except Exception as e:
-                logger.error(f"Witness correction error in {phase_type} Q{q_num}: {e}")
+                logger.error(f"Witness correction error in {phase_type} Q{q_num}: {e}", exc_info=True)
             transcript.append(AIMessage(content=a.content, name="Witness"))
             qa_log.append({"q": content, "a": a.content})
         else:
@@ -1774,7 +1775,7 @@ def witness_direct(state: TrialState) -> dict:
                     ))
                 ])
             except Exception as e:
-                logger.error(f"Judge question error in inquisitorial Q{q_num}: {e}")
+                logger.error(f"Judge question error in inquisitorial Q{q_num}: {e}", exc_info=True)
                 continue
 
             transcript.append(AIMessage(content=f"Q (Judge): {q.content}", name="Judge"))
@@ -1789,7 +1790,7 @@ def witness_direct(state: TrialState) -> dict:
                     ))
                 ])
             except Exception as e:
-                logger.error(f"Witness answer error in inquisitorial Q{q_num}: {e}")
+                logger.error(f"Witness answer error in inquisitorial Q{q_num}: {e}", exc_info=True)
                 transcript.append(AIMessage(content="[Witness could not respond]", name="System"))
                 continue
 
@@ -1971,7 +1972,7 @@ def witness_redirect(state: TrialState) -> dict:
                 # Fallback: treat as single question
                 impeach_questions = [impeach_resp.content.strip()]
         except Exception as e:
-            logger.error(f"Impeachment question error: {e}")
+            logger.error(f"Impeachment question error: {e}", exc_info=True)
             impeach_questions = []
 
         for i, q_text in enumerate(impeach_questions):
@@ -2013,7 +2014,7 @@ def witness_redirect(state: TrialState) -> dict:
             else:
                 redirect_questions = [redirect_resp.content.strip()] if redirect_resp.content.strip() else []
         except Exception as e:
-            logger.error(f"Redirect question error: {e}")
+            logger.error(f"Redirect question error: {e}", exc_info=True)
             redirect_questions = []
 
         for i, q_text in enumerate(redirect_questions):
@@ -2150,7 +2151,7 @@ def closing_arguments_node(state: TrialState) -> dict:
 
         return {"transcript": transcript}
     except Exception as e:
-        logger.error(f"Closing Arguments Error: {e}")
+        logger.error(f"Closing Arguments Error: {e}", exc_info=True)
         return {"transcript": [
             AIMessage(content=f"[Closing arguments could not be generated: {e}]", name="System"),
         ]}
@@ -2178,7 +2179,7 @@ def jury_instructions_node(state: TrialState) -> dict:
         ])
         return {"transcript": [AIMessage(content=msg.content, name="Judge")]}
     except Exception as e:
-        logger.error(f"Jury Instructions Error: {e}")
+        logger.error(f"Jury Instructions Error: {e}", exc_info=True)
         return {"transcript": [
             AIMessage(content=f"[Jury instructions could not be generated: {e}]", name="System"),
         ]}
@@ -2199,9 +2200,13 @@ def _parse_juror_vote(raw_text: str) -> tuple[str, str]:
 
     vote_patterns = [
         r"vote:\s*(.+)$",
-        r"^(guilty|not guilty|liable|not liable|undecided)\s*$",
+        r"^(guilty|not guilty|liable|not liable|undecided)\s*[.!?]?\s*$",
         r"i\s+(?:find\s+the\s+defendant\s+)?(guilty|not guilty|liable|not liable)",
         r"(?:my\s+vote\s+is|i\s+vote\s*:?)\s*(guilty|not guilty|liable|not liable|undecided)",
+        r"(?:i\s+(?:believe|conclude|determine)\s+(?:the\s+defendant\s+is|that\s+the\s+defendant\s+is))\s*(guilty|not guilty|liable|not liable)",
+        r"(?:the\s+(?:defendant|accused)\s+is)\s*(guilty|not guilty|liable|not liable)",
+        r"(?:burden\s+(?:met|not\s+met|satisfied|not\s+satisfied))",
+        r"(?:evidence\s+(?:sufficient|insufficient|meets\s+the\s+standard|does\s+not\s+meet))",
     ]
 
     for line in reversed(lines):
@@ -2211,23 +2216,37 @@ def _parse_juror_vote(raw_text: str) -> tuple[str, str]:
             match = re.search(pattern, line_lower)
             if match:
                 vote_text = match.group(1) if match.lastindex else line_lower
-                vote_text = vote_text.strip().upper()
+                vote_text = vote_text.strip()
 
-                if "NOT GUILTY" in vote_text:
-                    vote = "Not Guilty"
-                elif "NOT LIABLE" in vote_text:
-                    vote = "Not Liable"
-                elif "GUILTY" in vote_text:
+                if "not guilty" in vote_text or "not liable" in vote_text:
+                    if "not guilty" in vote_text:
+                        vote = "Not Guilty"
+                    else:
+                        vote = "Not Liable"
+                elif "guilty" in vote_text:
                     vote = "Guilty"
-                elif "LIABLE" in vote_text:
+                elif "liable" in vote_text:
                     vote = "Liable"
-                elif "UNDECIDED" in vote_text:
+                elif "undecided" in vote_text:
                     vote = "Undecided"
+                elif "not met" in vote_text or "insufficient" in vote_text or "does not meet" in vote_text:
+                    vote = "Not Guilty"
+                elif "met" in vote_text or "sufficient" in vote_text or "meets" in vote_text:
+                    vote = "Guilty"
 
                 statement = "\n".join(
                     l for l in lines if not re.search(pattern, l.lower())
                 ).strip()
+                if not statement:
+                    statement = raw_text
                 return statement, vote
+
+    for line in lines:
+        line_lower = line.lower()
+        if "not guilty" in line_lower:
+            return raw_text, "Not Guilty"
+        if "not liable" in line_lower:
+            return raw_text, "Not Liable"
 
     return statement, vote
 
@@ -2246,12 +2265,12 @@ def _call_single_juror(
     Returns (statement_text, vote_string).
     """
     from src.llm import get_llm
-    juror_llm = get_llm(temperature=0.7, model=juror_profile.get("model", "qwen-flash"))
+    juror_llm = get_llm(temperature=0.4, model=juror_profile.get("model", AGENT_MODELS.get("Jury Foreperson", "qwen-plus-latest")))
 
     prior_block = ""
     if prior_statements:
         prior_block = "\n\nFellow jurors have said:\n" + "\n".join(
-            f"  - {s}" for s in prior_statements[-4:]  # last 4 to keep prompt lean
+            f"  - {s}" for s in prior_statements[-8:]
         )
 
     name = juror_profile.get("name", f"Juror {juror_profile.get('juror_id', '?')}")
@@ -2276,7 +2295,7 @@ def _call_single_juror(
         raw = resp.content.strip()
         return _parse_juror_vote(raw)
     except Exception as e:
-        logger.error(f"[Juror {juror_profile.get('juror_id')} call error] {e}")
+        logger.error(f"[Juror {juror_profile.get('juror_id')} call error] {e}", exc_info=True)
         return "Based on the admitted evidence, I am deliberating carefully.", "Undecided"
 
 
@@ -2477,7 +2496,7 @@ def jury_deliberation_node(state: TrialState) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"Jury Deliberation Error: {e}")
+        logger.error(f"Jury Deliberation Error: {e}", exc_info=True)
         fallback_msg = AIMessage(content=f"[Jury deliberation error: {e}]", name="System")
         return {
             "deliberation_rounds": rounds,
@@ -2489,12 +2508,14 @@ def jury_deliberation_node(state: TrialState) -> dict:
 
 async def async_shadow_jury(jury_id: int, case_facts: str, admitted: list, legal_standard: str, model: str):
     """Async single shadow jury evaluation."""
-    llm = get_structured_llm(JuryVerdict, temperature=0.8, model=model)
+    llm = get_structured_llm(JuryVerdict, temperature=0.4, model=model)
     try:
         res = await llm.ainvoke([
             SystemMessage(content=(
-                f"You are an independent shadow juror. Apply the standard '{legal_standard}' "
-                f"to the admitted evidence only. Provide a rationale and return your verdict as a json object."
+                f"You are an independent shadow juror in a {legal_standard} case. "
+                f"Apply the standard '{legal_standard}' to the admitted evidence only. "
+                f"Cite specific evidence items by name in your rationale. "
+                f"Provide a clear rationale and return your verdict as a json object."
             )),
             HumanMessage(content=(
                 f"Admitted evidence:\n{admitted}\n\n"
@@ -2504,7 +2525,7 @@ async def async_shadow_jury(jury_id: int, case_facts: str, admitted: list, legal
         ])
         return {"vote": res.verdict, "rationale": res.rationale, "id": jury_id}
     except Exception as e:
-        logger.error(f"Shadow Jury {jury_id} Error: {e}")
+        logger.error(f"Shadow Jury {jury_id} Error: {e}", exc_info=True)
         return {"vote": "Hung", "rationale": "I could not reach a decision.", "id": jury_id}
 
 
@@ -2567,73 +2588,81 @@ def rebuttal_evidence_node(state: TrialState) -> dict:
     if not _has_actionable_case_facts(facts):
         return _insufficient_record_evidence(jx)
 
-    pros_llm  = get_llm(temperature=0.6, model=AGENT_MODELS["Prosecutor"])
-    def_llm   = get_llm(temperature=0.6, model=AGENT_MODELS["Defense Counsel"])
-    judge_llm = get_structured_llm(JudgeRuling, temperature=0.1, model=AGENT_MODELS["Judge"])
+    try:
+        pros_llm  = get_llm(temperature=0.6, model=AGENT_MODELS["Prosecutor"])
+        def_llm   = get_llm(temperature=0.6, model=AGENT_MODELS["Defense Counsel"])
+        judge_llm = get_structured_llm(JudgeRuling, temperature=0.1, model=AGENT_MODELS["Judge"])
+    except Exception as e:
+        logger.error("Rebuttal LLM init error: %s", e, exc_info=True)
+        return {"transcript": [AIMessage(content=f"[Rebuttal Error: LLM init failed — {e}]", name="System")]}
 
-    # Round 1: Prosecution rebuttal
-    pros_rebut = pros_llm.invoke([
-        SystemMessage(content=p.prosecutor_prompt(jx)),
-        HumanMessage(content=(
-            f"Present ONE rebuttal exhibit in 40 words or fewer. Name it and state why it rebuts "
-            f"the defence's case. Ground it in the case facts.\nCase facts:\n{facts}"
-        ))
-    ])
-    transcript.append(AIMessage(content=pros_rebut.content, name="Prosecutor"))
+    try:
+        # Round 1: Prosecution rebuttal
+        pros_rebut = pros_llm.invoke([
+            SystemMessage(content=p.prosecutor_prompt(jx)),
+            HumanMessage(content=(
+                f"Present ONE rebuttal exhibit in 40 words or fewer. Name it and state why it rebuts "
+                f"the defence's case. Ground it in the case facts.\nCase facts:\n{facts}"
+            ))
+        ])
+        transcript.append(AIMessage(content=pros_rebut.content, name="Prosecutor"))
 
-    def_obj = def_llm.invoke([
-        SystemMessage(content=p.defense_prompt(jx)),
-        HumanMessage(content=(
-            f"Prosecution rebuttal:\n\"{pros_rebut.content}\"\n\n"
-            f"Object in 30 words or fewer. Cite the specific rule from {jx['evidence_rules']}."
-        ))
-    ])
-    transcript.append(AIMessage(content=def_obj.content, name="Defense Counsel"))
+        def_obj = def_llm.invoke([
+            SystemMessage(content=p.defense_prompt(jx)),
+            HumanMessage(content=(
+                f"Prosecution rebuttal:\n\"{pros_rebut.content}\"\n\n"
+                f"Object in 30 words or fewer. Cite the specific rule from {jx['evidence_rules']}."
+            ))
+        ])
+        transcript.append(AIMessage(content=def_obj.content, name="Defense Counsel"))
 
-    ruling1 = judge_llm.invoke([
-        SystemMessage(content=p.judge_prompt(jx)),
-        HumanMessage(content=(
-            f"Prosecution rebuttal: {pros_rebut.content}\n"
-            f"Defence objects: {def_obj.content}\n\n"
-            f"Rule on the objection under {jx['evidence_rules']}.\n"
-            f"Return JSON with two keys: \"ruling\" (either 'SUSTAINED' or 'OVERRULED') "
-            f"and \"rationale\" (your legal basis citing the specific rule)."
-        ))
-    ])
-    ruling1_text = f"The objection is {ruling1.ruling}." + (f" {_strip_ruling_preamble(ruling1.rationale, ruling1.ruling)}" if ruling1.rationale else "")
-    transcript.append(AIMessage(content=ruling1_text, name="Judge"))
+        ruling1 = judge_llm.invoke([
+            SystemMessage(content=p.judge_prompt(jx)),
+            HumanMessage(content=(
+                f"Prosecution rebuttal: {pros_rebut.content}\n"
+                f"Defence objects: {def_obj.content}\n\n"
+                f"Rule on the objection under {jx['evidence_rules']}.\n"
+                f"Return JSON with two keys: \"ruling\" (either 'SUSTAINED' or 'OVERRULED') "
+                f"and \"rationale\" (your legal basis citing the specific rule)."
+            ))
+        ])
+        ruling1_text = f"The objection is {ruling1.ruling}." + (f" {_strip_ruling_preamble(ruling1.rationale, ruling1.ruling)}" if ruling1.rationale else "")
+        transcript.append(AIMessage(content=ruling1_text, name="Judge"))
 
-    # Round 2: Defence surrebuttal
-    def_sur = def_llm.invoke([
-        SystemMessage(content=p.defense_prompt(jx)),
-        HumanMessage(content=(
-            f"Present ONE surrebuttal exhibit in 40 words or fewer. Name it and state why it "
-            f"responds to the prosecution's rebuttal. Ground it in the case facts.\nCase facts:\n{facts}"
-        ))
-    ])
-    transcript.append(AIMessage(content=def_sur.content, name="Defense Counsel"))
+        # Round 2: Defence surrebuttal
+        def_sur = def_llm.invoke([
+            SystemMessage(content=p.defense_prompt(jx)),
+            HumanMessage(content=(
+                f"Present ONE surrebuttal exhibit in 40 words or fewer. Name it and state why it "
+                f"responds to the prosecution's rebuttal. Ground it in the case facts.\nCase facts:\n{facts}"
+            ))
+        ])
+        transcript.append(AIMessage(content=def_sur.content, name="Defense Counsel"))
 
-    pros_obj = pros_llm.invoke([
-        SystemMessage(content=p.prosecutor_prompt(jx)),
-        HumanMessage(content=(
-            f"Defence surrebuttal:\n\"{def_sur.content}\"\n\n"
-            f"Object in 30 words or fewer. Cite the specific rule from {jx['evidence_rules']}."
-        ))
-    ])
-    transcript.append(AIMessage(content=pros_obj.content, name="Prosecutor"))
+        pros_obj = pros_llm.invoke([
+            SystemMessage(content=p.prosecutor_prompt(jx)),
+            HumanMessage(content=(
+                f"Defence surrebuttal:\n\"{def_sur.content}\"\n\n"
+                f"Object in 30 words or fewer. Cite the specific rule from {jx['evidence_rules']}."
+            ))
+        ])
+        transcript.append(AIMessage(content=pros_obj.content, name="Prosecutor"))
 
-    ruling2 = judge_llm.invoke([
-        SystemMessage(content=p.judge_prompt(jx)),
-        HumanMessage(content=(
-            f"Defence surrebuttal: {def_sur.content}\n"
-            f"Prosecution objects: {pros_obj.content}\n\n"
-            f"Rule on the objection under {jx['evidence_rules']}.\n"
-            f"Return JSON with two keys: \"ruling\" (either 'SUSTAINED' or 'OVERRULED') "
-            f"and \"rationale\" (your legal basis citing the specific rule)."
-        ))
-    ])
-    ruling2_text = f"The objection is {ruling2.ruling}." + (f" {_strip_ruling_preamble(ruling2.rationale, ruling2.ruling)}" if ruling2.rationale else "")
-    transcript.append(AIMessage(content=ruling2_text, name="Judge"))
+        ruling2 = judge_llm.invoke([
+            SystemMessage(content=p.judge_prompt(jx)),
+            HumanMessage(content=(
+                f"Defence surrebuttal: {def_sur.content}\n"
+                f"Prosecution objects: {pros_obj.content}\n\n"
+                f"Rule on the objection under {jx['evidence_rules']}.\n"
+                f"Return JSON with two keys: \"ruling\" (either 'SUSTAINED' or 'OVERRULED') "
+                f"and \"rationale\" (your legal basis citing the specific rule)."
+            ))
+        ])
+        ruling2_text = f"The objection is {ruling2.ruling}." + (f" {_strip_ruling_preamble(ruling2.rationale, ruling2.ruling)}" if ruling2.rationale else "")
+        transcript.append(AIMessage(content=ruling2_text, name="Judge"))
+    except Exception as e:
+        logger.error("Rebuttal evidence processing error: %s", e, exc_info=True)
+        transcript.append(AIMessage(content=f"[Rebuttal Error: {e}]", name="System"))
 
     updated_state = {**state, "transcript": state.get("transcript", []) + transcript}
     clerk_update = _clerk_compression(updated_state)
@@ -2699,7 +2728,7 @@ def sentencing_node(state: TrialState) -> dict:
 
         return {"transcript": transcript, "sentence": _pydantic_to_dict(result)}
     except Exception as e:
-        logger.error(f"Sentencing Error: {e}")
+        logger.error(f"Sentencing Error: {e}", exc_info=True)
         return {"transcript": [
             AIMessage(content=f"[Sentencing could not be completed: {e}]", name="System"),
         ]}
@@ -2736,7 +2765,7 @@ def reporter_node(state: TrialState) -> dict:
             AIMessage(content="Trial log compiled by the Court Reporter.", name="Court Reporter"),
         ]}
     except Exception as e:
-        logger.error(f"Reporter Error: {e}")
+        logger.error(f"Reporter Error: {e}", exc_info=True)
         return {"trial_log": {}, "transcript": [
             AIMessage(content=f"[Reporter could not compile the log: {e}]", name="System"),
         ]}
@@ -2773,10 +2802,10 @@ def archivist_node(state: TrialState) -> dict:
             with open(record_path, "w") as f:
                 f.write(doc.content)
         except OSError as write_err:
-            logger.error(f"Archivist write error: {write_err}")
+            logger.error(f"Archivist write error: {write_err}", exc_info=True)
         return {"transcript": [AIMessage(content="Official Trial Record archived.", name="Archivist")]}
     except Exception as e:
-        logger.error(f"Archivist Error: {e}")
+        logger.error(f"Archivist Error: {e}", exc_info=True)
         return {"transcript": [
             AIMessage(content=f"[Archivist could not produce the record: {e}]", name="System"),
         ]}

@@ -2666,6 +2666,12 @@
             <div class="verdict-text" id="verdictText">—</div>
             <div class="verdict-sub" id="verdictSub">Awaiting verdict…</div>
           </div>
+
+          <div id="actualJuryCard" class="chart-card" style="margin-top: 20px; display:none;">
+            <h4><i class="fas fa-users"></i> Jury Vote Breakdown</h4>
+            <div id="juryVoteBreakdown" style="margin-bottom: 12px;"></div>
+            <div id="forepersonRationale" style="font-size: 0.85rem; color: var(--text); line-height: 1.5; padding: 10px; background: var(--bg); border-radius: 6px; border-left: 3px solid var(--gold);"></div>
+          </div>
           
           <div class="chart-card" style="margin-top: 20px;">
             <h4><i class="fas fa-users-cog"></i> Shadow Jury Room</h4>
@@ -2690,8 +2696,8 @@
           <div class="analytics-grid">
             <div class="chart-card">
               <h4>
-                <i class="fas fa-tachometer-alt"></i> Win Likelihood (Shadow
-                Jury)
+                <i class="fas fa-tachometer-alt"></i> Burden Met
+                Probability
               </h4>
               <div style="text-align: center; padding: 20px 0">
                 <div
@@ -2727,7 +2733,7 @@
           <div class="analytics-grid">
             <div class="chart-card">
               <h4>
-                <i class="fas fa-chart-bar"></i> Shadow Jury Vote Distribution
+                <i class="fas fa-chart-bar"></i> Vote Distribution
               </h4>
               <div id="voteChart" style="height: 200px"></div>
             </div>
