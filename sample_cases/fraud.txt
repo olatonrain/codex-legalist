@@ -1,0 +1,27 @@
+# République Française v. Laurent Mercier — Escroquerie en Bande Organisée (Organised Fraud)
+
+The defendant, Laurent Mercier, aged 47, a certified public accountant (expert-comptable) and managing partner at the Lyon office of Mercier & Fils, is charged with escroquerie en bande organisée (organised fraud) under Articles 313-1 and 313-2 of the French Penal Code. Between January 2022 and August 2024, the defendant allegedly orchestrated a scheme defrauding 137 investors — predominantly retirees in the Auvergne-Rhône-Alpes region — of a collective €8.7 million through a fictitious renewable energy investment fund called "Provence Solaire Investissement" (PSI).
+
+PSI was marketed through glossy brochures, seminars at hotels across Lyon, Grenoble, and Annecy, and a professional website promising 11% annual returns from solar farm developments in southern France. Investors were told their capital was secured against physical assets. In reality: (1) no solar farms were ever constructed or even had planning permission filed; (2) investor funds were deposited into a corporate account at Banque Populaire, then transferred in 23 separate wire transactions to personal accounts in Luxembourg and Monaco; (3) early investors were paid returns using incoming funds from later investors — a classic Ponzi structure; (4) Mercier personally owns a villa in Saint-Tropez purchased for €1.4 million in March 2023 and a Porsche Taycan registered in April 2023.
+
+The scheme collapsed in September 2024 when Banque Populaire flagged the account for suspicious transactions and froze the remaining €340,000. By then, €8.36 million had been dispersed. A whistleblower — Sophie Navarro, a junior accountant at Mercier & Fils who resigned in June 2024 — provided AMF (Autorité des Marchés Financiers) investigators with internal emails showing Mercier directing staff to "créer de nouveaux bulletins de souscription pour couvrir les retraits" (create new subscription forms to cover withdrawals).
+
+The defendant claims: (1) PSI was a legitimate business venture that failed due to unforeseen planning permission rejections and rising construction costs; (2) investors were warned of risks in the subscription documents; (3) the Luxembourg and Monaco accounts were legitimate tax-planning vehicles, not personal enrichment; (4) the villa and car were purchased with inheritance from his late father and separate accounting practice income. He has not testified directly, exercising his right to silence.
+
+Key evidence:
+- Exhibit A: 137 signed subscription bulletins totalling €8.7 million, each promising 11% annual returns "garantis par des actifs physiques" (guaranteed by physical assets)
+- Exhibit B: Bank records from Banque Populaire showing 23 wire transfers (totalling €8.06 million) from PSI corporate account to personal accounts at Banque de Luxembourg and CFM Monaco
+- Exhibit C: AMF investigative report confirming zero planning applications filed for any solar farm in Provence under PSI or associated entity names
+- Exhibit D: Sophie Navarro's whistleblower email archive, including 14 emails from Mercier instructing staff to create fake subscription forms
+- Exhibit E: Forensic accounting report by Cabinet Renaud tracing the Ponzi payment structure (€1.2 million of early withdrawals funded by later investor deposits)
+- Exhibit F: Land registry records showing Mercier's Saint-Tropez villa purchased March 2023 (€1.4 million)
+- Exhibit G: Vehicle registration for Porsche Taycan (April 2023, €132,000)
+- Exhibit H: Mercier's tax returns 2020-2024 showing declared annual income of €180,000-220,000 (insufficient to fund villa and car purchases)
+- Exhibit I: AMF warning letter to PSI dated May 2023 and PSI's response (drafted by Mercier) dismissing the inquiry as "routine verification"
+
+Witnesses:
+- Sophie Navarro: Former junior accountant at Mercier & Fils, whistleblower. Resigned June 2024. Will testify about the internal email instructions and the office culture of secrecy around PSI accounts.
+- Inspector Hélène Dubois: AMF Enforcement Division. Led the 14-month investigation. Will testify about the financial tracing, lack of planning applications, and the Ponzi payment structure.
+- François Renaud: Forensic accountant (expert-comptable judiciaire) appointed by the court. Will testify that the account structure was "consistent with deliberate misappropriation and inconsistent with any legitimate business purpose."
+- Three victim witnesses (to be selected from 137 investors, including a 74-year-old retired teacher who lost €210,000 and a 68-year-old widow who lost €95,000).
+- M. Bernard Girard: Defence witness. Managing partner at a competing Lyon accounting firm. Will testify that AMF regulatory requirements for investment funds are complex and that errors in classification can occur without fraudulent intent.

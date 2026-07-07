@@ -1,0 +1,24 @@
+# Federal Republic of Nigeria v. Chidi Okonkwo — Unauthorised Access to Computer Systems and Data Theft
+
+The defendant, Chidi Okonkwo, a 31-year-old former systems administrator at ZenithPay, a Lagos-based fintech company processing mobile payments for 4.2 million Nigerians, is charged with unauthorised access to computer systems and data theft contrary to Sections 6 and 8 of the Nigeria Cybercrimes (Prohibition, Prevention, Etc.) Act, 2015. On April 17th, ZenithPay's security monitoring system detected a series of anomalous database queries originating from an internal IP address (192.168.45.17) at 3:14 AM. The queries exported 847,000 customer records including full names, Bank Verification Numbers (BVN), phone numbers, and transaction histories. The export was routed through an encrypted SSH tunnel to an external server hosted by DigitalOcean with IP address 167.99.231.44, registered under the name "C. Okonkwo" with a Nigerian billing address. The defendant's access card was swiped at the ZenithPay office at 2:58 AM — 16 minutes before the queries began. CCTV footage shows a person matching Okonkwo's build entering the server room at 3:02 AM. The defendant's workstation login credentials (username: c.okonkwo) were used to initiate the data export.
+
+Okonkwo was terminated from ZenithPay on March 20th — four weeks before the breach — following a disciplinary hearing for unauthorised installation of remote access software on three employee workstations. His access badge and network credentials were allegedly deactivated on the date of his termination. The defendant claims: (1) he was at home asleep at the time of the breach; (2) his credentials were not properly deactivated by the IT department; and (3) a still-employed colleague with administrative access — Mr. Emeka Nwosu, who had a known personal conflict with Okonkwo — could have used his credentials. The defence has submitted cell tower data showing Okonkwo's phone connected to a tower near his residence in Surulere at 3:20 AM.
+
+A subsequent raid on Okonkwo's apartment on April 20th recovered a laptop containing a file named "zenithpay_backup_17042024.sql" (2.3 GB, matching the breach dataset). Okonkwo claims the file was planted. A second laptop was found at the residence of Mr. Nwosu during a separate investigation, containing partial ZenithPay customer records. Nwosu has not been charged.
+
+Key evidence:
+- Server access logs showing export queries from internal IP 192.168.45.17 at 3:14 AM, April 17th
+- SSH tunnel logs routing traffic to DigitalOcean server IP 167.99.231.44, registered under "C. Okonkwo"
+- Building access logs showing Okonkwo's badge swiped at 2:58 AM
+- CCTV footage from server room corridor at 3:02 AM (figure not identifiable by face, matches Okonkwo's build)
+- Workstation login records for username c.okonkwo at 3:04 AM
+- Digital forensic report on laptop recovered from Okonkwo's apartment: file "zenithpay_backup_17042024.sql" (2.3 GB)
+- Digital forensic report on laptop recovered from Nwosu's residence: partial customer records
+- Cell tower data: Okonkwo's phone near Surulere at 3:20 AM
+- ZenithPay HR records: termination letter dated March 20th, IT deactivation ticket #IT-4721
+
+Witnesses:
+- Mr. Adewale Balogun: ZenithPay Chief Information Security Officer. Will testify about the monitoring system, breach timeline, server logs, and credential deactivation procedures.
+- Inspector Grace Adeyemi: Nigeria Police Force Cybercrime Unit. Led the raid and digital forensic investigation. Will testify about the chain of custody for the recovered laptops and forensic findings.
+- Mr. Emeka Nwosu: Current ZenithPay employee, former colleague of the defendant. Had a documented conflict with Okonkwo over a promotion. Not charged. Second laptop found at his residence with partial records. Will be cross-examined on his access and motive.
+- Chidi Okonkwo: Defendant. Will testify he was home asleep, credentials were not deactivated, and the SQL file was planted.

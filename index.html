@@ -1255,6 +1255,32 @@
         background: rgba(39, 174, 96, 0.12);
         color: var(--defense);
       }
+      .obj-type-badge {
+        display: inline-block;
+        padding: 1px 6px;
+        border-radius: 3px;
+        font-size: 8px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        background: rgba(230, 126, 34, 0.2);
+        color: #e67e22;
+        margin-left: 4px;
+        vertical-align: middle;
+      }
+      .expert-badge {
+        display: inline-block;
+        padding: 1px 5px;
+        border-radius: 3px;
+        font-size: 8px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        background: rgba(142, 68, 173, 0.2);
+        color: #8e44ad;
+        margin-left: 4px;
+        vertical-align: middle;
+      }
       /* Legacy .objection-item kept for compatibility */
       .objection-item {
         padding: 10px;
@@ -1974,6 +2000,9 @@
         <button class="nav-btn" id="pauseBtn">
           <i class="fas fa-pause"></i><span>Pause</span>
         </button>
+        <button class="nav-btn" id="saveBtn" title="Save current trial state">
+          <i class="fas fa-save"></i><span>Save</span>
+        </button>
         <button class="nav-btn" id="exportTopBtn">
           <i class="fas fa-file-export"></i><span>Export</span>
         </button>
@@ -2122,10 +2151,32 @@
               <div class="stat-label">Version</div>
               <div class="stat-value mono" style="font-size: 22px">v1.0.0</div>
               <div class="stat-sub">Build 2026.07.01</div>
+          </div>
+        </div>
+
+        <div class="right-section" id="motionRulingsSection" style="display:none">
+          <div class="panel-title">
+            <i class="fas fa-file-signature"></i> Motion Rulings
+          </div>
+          <div id="motionRulingsContainer">
+            <div style="font-size: 0.78rem; color: var(--muted)">
+              No motions filed yet.
             </div>
           </div>
+        </div>
 
-          <div
+        <div class="right-section" id="discoverySection" style="display:none">
+          <div class="panel-title">
+            <i class="fas fa-search"></i> Discovery Summary
+          </div>
+          <div id="discoveryContainer">
+            <div style="font-size: 0.78rem; color: var(--muted)">
+              Awaiting discovery phase.
+            </div>
+          </div>
+        </div>
+
+        <div
             style="
               display: flex;
               justify-content: space-between;
@@ -2451,6 +2502,17 @@
                 >
                   <i class="fas fa-file-contract"></i> Nexus v. Aether · NDA
                 </button>
+                <button
+                  id="demoVance"
+                  class="nav-btn"
+                  style="
+                    background: var(--bg);
+                    color: var(--text);
+                    border: 1px solid var(--border);
+                  "
+                >
+                  <i class="fas fa-fire"></i> State v. Vance · Homicide
+                </button>
               </div>
             </div>
           </div>
@@ -2616,6 +2678,13 @@
                 Awaiting shadow jury deliberation...
               </div>
             </div>
+          </div>
+          
+          <div id="sentencingCard" class="chart-card" style="display:none; margin-top: 20px;">
+            <h4><i class="fas fa-hammer"></i> Sentence Pronounced</h4>
+            <div style="font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; color: var(--gold);" id="sentenceText">—</div>
+            <div style="font-size: 0.95rem; margin-bottom: 8px; line-height: 1.5;" id="sentenceTerm">—</div>
+            <div style="font-size: 0.8rem; color: var(--muted); line-height: 1.5;" id="sentenceRationale">—</div>
           </div>
           
           <div class="analytics-grid">

@@ -35,10 +35,11 @@ const State = {
   demoVerdictData: null,
   demoShadowNarrative: [],
   graphState:     {},
-  liveStep:       "opening",
+  liveStep:       "discovery",
   livePaused:     false,
   liveRunning:    false,
-  questions:      [],
+  questions:       [],
+  identifiedEvidence: [],
   missingEvidence: [],
   missingWitnesses: [],
   missingEvidenceAnswers: {},
@@ -52,6 +53,9 @@ const State = {
   verdictData:    null,
   benchmarkData:  null,
   benchmarkRunning: false,
+  currentWitnessName: null,
+  phaseTimings: {},
+  phaseStartTime: null,
   metrics: { duration: 0, utterances: 0, objections: 0, admitted: 0, total_ev: 0 },
   metricsTimer:   null,
 };
@@ -173,6 +177,13 @@ function switchView(viewId) {
     if (legalRef && showPanel) legalRef.style.display = "";
   }
 
+  renderMotionRulings();
+  renderDiscoverySummary();
+
+  if (viewId === "dashboard") {
+    loadSaveList();
+  }
+
   setTimeout(() => {
     if (viewId === "verdict") renderVerdictView(State.verdictData);
     if (viewId === "deliberation") renderDeliberationView();
@@ -242,10 +253,21 @@ function initSpeedSlider() {
 }
 
 function initNavActions() {
-  $("pauseBtn")?.addEventListener("click", togglePause);
-  $("newTrialBtn")?.addEventListener("click", resetTrialWorkspace);
-  $("exportTopBtn")?.addEventListener("click", exportTrialReport);
-  $("exportReportBtn")?.addEventListener("click", exportTrialReport);
+  $("pauseBtn")?.addEventListener("click", () => {
+    try { togglePause(); } catch (e) {
+      console.error("[Pause] Error:", e);
+      showToast("Pause error: " + e.message, "error");
+    }
+  });
+  $("newTrialBtn")?.addEventListener("click", () => {
+    try { resetTrialWorkspace(); } catch (e) {
+      console.error("[NewTrial] Error:", e);
+      showToast("New Trial error: " + e.message, "error");
+    }
+  });
+  $("exportTopBtn")?.addEventListener("click", () => exportTranscript("markdown"));
+  $("exportReportBtn")?.addEventListener("click", () => exportTranscript("markdown"));
+  $("saveBtn")?.addEventListener("click", saveCurrentTrial);
   $("playBriefBtn")?.addEventListener("click", playAudioBrief);
   $("profileBtn")?.addEventListener("click", () => {
     addSystemMessage("Court profile: JP workspace operator. No courtroom role is assigned to this profile.");
@@ -265,9 +287,23 @@ function updateExportControls() {
     btn.style.opacity = disabled ? "0.55" : "";
     btn.title = disabled ? "Available after the trial concludes" : "";
   });
+  const saveBtn = $("saveBtn");
+  if (saveBtn) {
+    const noTrial = !State.graphState || Object.keys(State.graphState).length === 0;
+    saveBtn.disabled = noTrial;
+    saveBtn.style.opacity = noTrial ? "0.55" : "";
+  }
 }
 
 function togglePause() {
+  const hasActiveTrial = State.trialMode && (
+    (State.trialMode === "demo" && State.demoScript.length && State.demoRunning) ||
+    (State.trialMode === "live" && State.liveStep !== "done")
+  );
+  if (!hasActiveTrial) {
+    showToast("No active trial to pause.", "warning", 2500);
+    return;
+  }
   State.livePaused = !State.livePaused;
   if (State.demoRunning) State.demoRunning = !State.livePaused;
   const btn = $("pauseBtn");
@@ -276,6 +312,7 @@ function togglePause() {
       ? '<i class="fas fa-play"></i><span>Resume</span>'
       : '<i class="fas fa-pause"></i><span>Pause</span>';
   }
+  showToast(State.livePaused ? "Trial paused" : "Trial resumed", "info", 2000);
   updateNavBar(State.caseTitle, State.jurisdiction, State.livePaused ? "Paused" : "In Trial");
   if (!State.livePaused) {
     if (State.trialMode === "demo" && State.demoScript.length) stepDemo();
@@ -284,40 +321,248 @@ function togglePause() {
 }
 
 function resetTrialWorkspace() {
-  State.demoRunning = false;
-  State.livePaused = false;
-  State.liveRunning = false;
-  clearTimeout(State.demoTimer);
-  stopMetricsTimer();
-  State.caseText = "";
-  State.caseTitle = "—";
-  State.jurisdiction = "—";
-  State.graphState = {};
-  State.liveStep = "opening";
-  State.questions = [];
-  State.witnessQueue = [];
-  State.verdictData = null;
-  State.uploadedText = "";
-  State.uploadedFiles = [];
-  const textArea = $("caseTextarea");
-  if (textArea) textArea.value = "";
-  const uploadInfo = $("uploadInfo");
-  if (uploadInfo) uploadInfo.textContent = "";
-  const audioInfo = $("audioUploadInfo");
-  if (audioInfo) audioInfo.textContent = "";
-  const mag = $("magistrateChat");
-  if (mag) { mag.style.display = "none"; mag.innerHTML = ""; }
-  const beginBtn = $("beginTrialBtn");
-  if (beginBtn) beginBtn.style.display = "";
-  const pauseBtn = $("pauseBtn");
-  if (pauseBtn) pauseBtn.innerHTML = '<i class="fas fa-pause"></i><span>Pause</span>';
-  clearTranscript();
-  renderVerdictView(null);
-  renderDeliberationView();
-  updateExportControls();
-  updateNavBar("No active case", "Select jurisdiction", "Ready");
-  updateWizardSteps(1);
-  switchView("setup");
+  try {
+    State.demoRunning = false;
+    State.livePaused = false;
+    State.liveRunning = false;
+    clearTimeout(State.demoTimer);
+    stopMetricsTimer();
+    State.caseText = "";
+    State.caseTitle = "—";
+    State.jurisdiction = "—";
+    State.graphState = {};
+    State.liveStep = "discovery";
+    State.phaseTimings = {};
+    State.phaseStartTime = null;
+    State.questions = [];
+    State.witnessQueue = [];
+    State.identifiedEvidence = [];
+    State.verdictData = null;
+    State.uploadedText = "";
+    State.uploadedFiles = [];
+    State.trialMode = null;
+    const textArea = $("caseTextarea");
+    if (textArea) textArea.value = "";
+    const uploadInfo = $("uploadInfo");
+    if (uploadInfo) uploadInfo.textContent = "";
+    const audioInfo = $("audioUploadInfo");
+    if (audioInfo) audioInfo.textContent = "";
+    const mag = $("magistrateChat");
+    if (mag) { mag.style.display = "none"; mag.innerHTML = ""; }
+    const reviewEl = $("reviewStep");
+    if (reviewEl) { reviewEl.style.display = "none"; reviewEl.innerHTML = ""; }
+    const beginBtn = $("beginTrialBtn");
+    if (beginBtn) beginBtn.style.display = "";
+    const pauseBtn = $("pauseBtn");
+    if (pauseBtn) pauseBtn.innerHTML = '<i class="fas fa-pause"></i><span>Pause</span>';
+    clearTranscript();
+    renderVerdictView(null);
+    renderDeliberationView();
+    updateExportControls();
+    updateNavBar("No active case", "Select jurisdiction", "Ready");
+    updateWizardSteps(1);
+    switchView("setup");
+    console.log("[NewTrial] Workspace reset complete.");
+  } catch(e) {
+    console.error("[NewTrial] resetTrialWorkspace error:", e);
+    showToast("Reset error: " + e.message, "error");
+  }
+}
+
+async function saveCurrentTrial() {
+  if (!State.graphState || Object.keys(State.graphState).length === 0) {
+    showToast("No active trial to save.", "warning");
+    return;
+  }
+  try {
+    const resp = await fetch("/api/trial/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        graph_state: State.graphState,
+        case_title: State.caseTitle || "Untitled Case",
+        country: State.country || "Nigeria",
+        current_step: State.liveStep || "discovery",
+        elapsed_seconds: State.elapsed || 0,
+        phase_timings: State.phaseTimings || {},
+      }),
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+      showToast(`Trial saved — ID: ${data.save_id}`, "success");
+      await loadSaveList();
+    } else {
+      showToast(`Save failed: ${data.detail || "Unknown error"}`, "error");
+    }
+  } catch (e) {
+    showToast(`Save error: ${e.message}`, "error");
+  }
+}
+
+async function loadSaveList() {
+  try {
+    const resp = await fetch("/api/trial/saves");
+    const data = await resp.json();
+    const list = data.saves || [];
+    renderSavedTrials(list);
+  } catch (e) {
+    // Silently fail — saves list is not critical
+  }
+}
+
+async function loadTrialById(saveId) {
+  try {
+    const resp = await fetch(`/api/trial/load/${saveId}`);
+    if (!resp.ok) {
+      showToast(`Load failed: ${(await resp.json()).detail || "Unknown error"}`, "error");
+      return;
+    }
+    const data = await resp.json();
+    State.graphState = data.graph_state || {};
+    State.caseTitle = data.case_title || "Loaded Case";
+    State.country = data.country || "Nigeria";
+    State.liveStep = data.current_step || "discovery";
+    State.phaseTimings = data.phase_timings || {};
+    State.elapsed = data.elapsed_seconds || 0;
+    State.jurisdiction = data.country || "Nigeria";
+    State.verdictData = null;
+
+    if (["Guilty", "Liable", "Not Guilty", "Not Liable", "Coupable", "Non coupable"].includes(data.verdict)) {
+      State.verdictData = {
+        verdict: data.verdict,
+        case_title: data.case_title,
+        main_verdict: data.verdict,
+      };
+    }
+
+    clearTranscript();
+    updateNavBar(State.caseTitle, State.country, "Loaded");
+    updateExportControls();
+    populateLegalReference(State.country || "United States");
+    switchView("trial");
+
+    if (State.graphState.transcript && Array.isArray(State.graphState.transcript)) {
+      importTranscriptFromGraphState(State.graphState.transcript);
+    }
+
+    showToast(`Loaded: ${State.caseTitle}`, "success");
+    loadSaveList();
+  } catch (e) {
+    showToast(`Load error: ${e.message}`, "error");
+  }
+}
+
+function renderSavedTrials(saves) {
+  const container = $("dashboardCaseList");
+  if (!container) return;
+  if (!saves.length) {
+    container.innerHTML = `<div style="padding:10px;color:var(--muted);font-size:0.8rem">No saved trials yet.</div>`;
+    return;
+  }
+  container.innerHTML = saves.map(s => {
+    const vColor = (s.verdict || "").toUpperCase().includes("NOT GUILTY") || (s.verdict || "").toUpperCase().includes("NOT LIABLE") ? "var(--defense)"
+      : (s.verdict || "").toUpperCase().includes("GUILTY") || (s.verdict || "").toUpperCase().includes("LIABLE") ? "var(--prosecutor)"
+      : "var(--muted)";
+    return `
+    <div class="case-row" onclick="loadTrialById('${escapeHtml(s.save_id)}')">
+      <div>
+        <div class="case-title">${escapeHtml(s.case_title || "Untitled")}</div>
+        <div class="case-meta">${escapeHtml(s.country || "")} — ${escapeHtml(s.saved_at || "")}</div>
+      </div>
+      <div><span class="case-badge badge-trial">${escapeHtml(s.verdict || "In Progress")}</span></div>
+      <div></div>
+      <div></div>
+      <div style="text-align:right;display:flex;gap:4px;">
+        <button class="nav-btn" style="font-size:10px;padding:4px 8px" onclick="event.stopPropagation();loadTrialById('${escapeHtml(s.save_id)}')"><i class="fas fa-folder-open"></i> Load</button>
+        <button class="nav-btn" style="font-size:10px;padding:4px 8px;background:var(--prosecutor);color:#fff;border:none" onclick="event.stopPropagation();deleteTrial('${escapeHtml(s.save_id)}')"><i class="fas fa-trash"></i></button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+async function deleteTrial(saveId) {
+  if (!confirm(`Delete saved trial? This cannot be undone.`)) return;
+  try {
+    const resp = await fetch(`/api/trial/save/${saveId}`, { method: "DELETE" });
+    if (resp.ok) {
+      showToast(`Trial deleted.`, "success");
+      await loadSaveList();
+    } else {
+      const data = await resp.json();
+      showToast(`Delete failed: ${data.detail || "Unknown error"}`, "error");
+    }
+  } catch (e) {
+    showToast(`Delete error: ${e.message}`, "error");
+  }
+}
+
+function importTranscriptFromGraphState(transcriptList) {
+  const container = $("transcript");
+  if (!container) return;
+  container.innerHTML = "";
+  if (!transcriptList || transcriptList.length === 0) {
+    container.innerHTML = `<div class="no-transcript">Transcript loaded — 0 messages.</div>`;
+    return;
+  }
+  for (const msg of transcriptList) {
+    const content = typeof msg.content === "string" ? msg.content : String(msg.content || "");
+    const agent = msg.name || msg.agent || "System";
+    addTranscriptMessage(agent, content, "");
+  }
+}
+
+function showToast(message, type = "info", duration = 4000) {
+  let container = document.getElementById("toastContainer");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "toastContainer";
+    container.style.cssText = "position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:380px;pointer-events:none;";
+    document.body.appendChild(container);
+  }
+  const colors = {
+    success: { bg: "#30d158", fg: "#000" },
+    error:   { bg: "#ff453a", fg: "#fff" },
+    warning: { bg: "#ff9f0a", fg: "#000" },
+    info:    { bg: "#0a84ff", fg: "#fff" },
+  };
+  const c = colors[type] || colors.info;
+  const toast = document.createElement("div");
+  toast.style.cssText = `background:${c.bg};color:${c.fg};padding:10px 14px;border-radius:8px;font-size:0.82rem;font-weight:500;pointer-events:auto;box-shadow:0 4px 16px rgba(0,0,0,0.3);animation:fadeIn 0.25s ease-out;opacity:1;transition:opacity 0.3s;cursor:pointer;`;
+  const icons = { success: "fa-check-circle", error: "fa-exclamation-circle", warning: "fa-exclamation-triangle", info: "fa-info-circle" };
+  toast.innerHTML = `<i class="fas ${icons[type] || icons.info}" style="margin-right:6px"></i> ${escapeHtml(message)}`;
+  toast.addEventListener("click", () => {
+    toast.style.opacity = "0";
+    setTimeout(() => toast.remove(), 300);
+  });
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+async function exportTranscript(format = "markdown") {
+  if (!State.graphState || !State.graphState.transcript) {
+    addSystemMessage("No transcript to export.");
+    return;
+  }
+  try {
+    const resp = await fetch("/api/trial/transcript?format=" + format, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ graph_state: State.graphState, format }),
+    });
+    const data = await resp.json();
+    const blob = new Blob([data.transcript], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `transcript_${State.caseTitle.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.${format === "markdown" ? "md" : format}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    addSystemMessage(`Export error: ${e.message}`);
+  }
 }
 
 // ── Jurisdictions ─────────────────────────────────────────────────────────────
@@ -435,14 +680,32 @@ function initSetupForm() {
       State.witnessQueue = magData.witness_queue || [];
       State.missingEvidence = magData.missing_evidence || [];
       State.missingWitnesses = magData.missing_witnesses || [];
+      State.identifiedEvidence = magData.identified_evidence || [];
 
-      // 2. Show pre-trial Q&A form
-      renderPreTrialForm();
+      console.log("[Magistrate] Response:", {
+        ok: magRes.ok,
+        status: magRes.status,
+        questions: State.questions.length,
+        witnesses: State.witnessQueue,
+        missingEvidence: State.missingEvidence,
+        missingWitnesses: State.missingWitnesses,
+        identifiedEvidence: State.identifiedEvidence,
+      });
+
+      // Always show the pre-trial form — never auto-skip
+      try {
+        renderPreTrialForm();
+      } catch (formErr) {
+        console.error("[Magistrate] Form render error:", formErr);
+        showToast("Form rendering error: " + formErr.message, "error", 6000);
+      }
       switchView("setup");
       hideCaseDetailsForm();
       document.querySelector(".magistrate-chat")?.scrollIntoView({ behavior: "smooth" });
     } catch (e) {
-      alert("Magistrate error: " + e.message);
+      console.error("[Magistrate] Error:", e);
+      showToast(`Magistrate error: ${e.message}`, "error", 6000);
+      updateWizardSteps(1);
     } finally {
       beginBtn.disabled = false;
       beginBtn.innerHTML = '<i class="fas fa-balance-scale"></i> Begin Trial →';
@@ -551,6 +814,7 @@ async function toggleVoiceRecording() {
       info.textContent = "Recording what happened...";
       info.style.color = "var(--defense)";
     }
+    showToast("Recording started — speak your case facts", "info", 2500);
   } catch (err) {
     if (info) {
       info.textContent = "Microphone permission was denied or unavailable.";
@@ -630,6 +894,21 @@ function renderPreTrialForm() {
   
   wizard.innerHTML = "";
 
+  // Section 0: Witnesses identified (always shown if present)
+  if (State.witnessQueue && State.witnessQueue.length > 0) {
+    wizard.innerHTML += `
+      <div class="mag-msg" style="margin-bottom:20px;">
+        <div class="mag-avatar"><i class="fas fa-users"></i></div>
+        <div class="mag-bubble" style="border-left-color:var(--gold);">
+          <div class="q-num" style="color:var(--gold);font-weight:700;">Witnesses Identified (${State.witnessQueue.length})</div>
+          <div style="margin-bottom:8px;">The Magistrate has identified the following individuals from the case facts for witness examination:</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            ${State.witnessQueue.map(w => `<span style="background:var(--bg);padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;">${escapeHtml(w)}</span>`).join("")}
+          </div>
+        </div>
+      </div>`;
+  }
+
   // Section 1: Missing Evidence & Witnesses (if any)
   const hasMissing = (State.missingEvidence?.length > 0) || (State.missingWitnesses?.length > 0);
   if (hasMissing) {
@@ -698,7 +977,7 @@ function renderPreTrialForm() {
     wizard.innerHTML += missingHtml;
   }
 
-  // Section 2: Clarifying Questions
+  // Section 2: Clarifying Questions (or no-questions message)
   if (State.questions.length > 0) {
     let questionsHtml = `
       <div class="mag-msg">
@@ -729,6 +1008,15 @@ function renderPreTrialForm() {
           </div>
         </div>`;
     });
+  } else {
+    wizard.innerHTML += `
+      <div class="mag-msg" style="margin-bottom:16px;">
+        <div class="mag-avatar"><i class="fas fa-check-circle" style="color:var(--witness);"></i></div>
+        <div class="mag-bubble" style="border-left-color:var(--witness);">
+          <div class="q-num" style="color:var(--witness);">✓ Case Facts Sufficient</div>
+          <div>The Magistrate has reviewed your case and finds the factual record complete. No further clarifying questions are needed at this stage. You may review and proceed to trial.</div>
+        </div>
+      </div>`;
   }
 
   // Inject submit button
@@ -763,8 +1051,8 @@ function attachPreTrialAudioHandlers() {
   $$(".pretrial-audio-btn").forEach(btn => {
     btn.addEventListener("click", async () => {
       const idx = btn.dataset.q;
-      const statusEl = $(`.pretrial-audio-status[data-q="${idx}"]`);
-      const textarea = $(`.pretrial-answer[data-q="${idx}"]`);
+      const statusEl = document.querySelector(`.pretrial-audio-status[data-q="${idx}"]`);
+      const textarea = document.querySelector(`.pretrial-answer[data-q="${idx}"]`);
       await handleAudioRecording(btn, statusEl, textarea);
     });
   });
@@ -774,8 +1062,8 @@ function attachMissingItemsAudioHandlers() {
   $$(".missing-ev-audio-btn").forEach(btn => {
     btn.addEventListener("click", async () => {
       const idx = btn.dataset.missingEv;
-      const statusEl = $(`.missing-ev-audio-status[data-missing-ev="${idx}"]`);
-      const textarea = $(`.missing-evidence-answer[data-missing-ev="${idx}"]`);
+      const statusEl = document.querySelector(`.missing-ev-audio-status[data-missing-ev="${idx}"]`);
+      const textarea = document.querySelector(`.missing-evidence-answer[data-missing-ev="${idx}"]`);
       await handleAudioRecording(btn, statusEl, textarea);
     });
   });
@@ -783,8 +1071,8 @@ function attachMissingItemsAudioHandlers() {
   $$(".missing-wit-audio-btn").forEach(btn => {
     btn.addEventListener("click", async () => {
       const idx = btn.dataset.missingWit;
-      const statusEl = $(`.missing-wit-audio-status[data-missing-wit="${idx}"]`);
-      const textarea = $(`.missing-witness-answer[data-missing-wit="${idx}"]`);
+      const statusEl = document.querySelector(`.missing-wit-audio-status[data-missing-wit="${idx}"]`);
+      const textarea = document.querySelector(`.missing-witness-answer[data-missing-wit="${idx}"]`);
       await handleAudioRecording(btn, statusEl, textarea);
     });
   });
@@ -903,7 +1191,8 @@ function renderReviewStep() {
   const answers = State.preTrialAnswers || {};
   const answerCount = Object.keys(answers).length;
   const witnessCount = (State.witnessQueue || []).length;
-  
+  const evidenceCount = (State.identifiedEvidence || []).length;
+
   reviewEl.innerHTML = `
     <div style="padding: 20px; background: var(--bg); border-radius: 12px; border: 1px solid var(--border);">
       <h4 style="font-size: 16px; margin-bottom: 16px; color: var(--text);">
@@ -930,7 +1219,7 @@ function renderReviewStep() {
         </div>
       </div>
       
-      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px;">
         <div style="padding: 12px; background: var(--card); border-radius: 8px; text-align: center;">
           <div style="font-size: 24px; font-weight: 700; color: var(--accent);">${answerCount}</div>
           <div style="font-size: 11px; color: var(--muted);">Questions Answered</div>
@@ -940,10 +1229,29 @@ function renderReviewStep() {
           <div style="font-size: 11px; color: var(--muted);">Witnesses Identified</div>
         </div>
         <div style="padding: 12px; background: var(--card); border-radius: 8px; text-align: center;">
+          <div style="font-size: 24px; font-weight: 700; color: var(--accent);">${evidenceCount}</div>
+          <div style="font-size: 11px; color: var(--muted);">Evidence Items</div>
+        </div>
+        <div style="padding: 12px; background: var(--card); border-radius: 8px; text-align: center;">
           <div style="font-size: 24px; font-weight: 700; color: var(--accent);">${State.shadowJuries || 20}</div>
           <div style="font-size: 11px; color: var(--muted);">Shadow Juries</div>
         </div>
       </div>
+
+      ${evidenceCount > 0 ? `
+      <div style="margin-bottom: 16px;">
+        <div style="font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 8px;">
+          <i class="fas fa-folder-open" style="margin-right: 6px;"></i>Evidence Identified
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          ${(State.identifiedEvidence || []).map(e => `
+            <div style="padding: 6px 10px; background: var(--card); border-radius: 6px; font-size: 12px; color: var(--text); border-left: 3px solid var(--gold);">
+              ${escapeHtml(e)}
+            </div>
+          `).join("")}
+        </div>
+      </div>
+      ` : ""}
       
       ${witnessCount > 0 ? `
       <div style="margin-bottom: 16px;">
@@ -1015,6 +1323,7 @@ async function launchLiveTrial(skip) {
     // Show pre-trial Q&A in transcript
     clearTranscript();
     addSystemMessage("Pre-Trial Conference concluded. Trial commencing.");
+    showToast("Trial commenced — all rise.", "info", 2500);
     if (!skip) {
       // Show missing items answers first
       Object.entries(missingEvAnswers).forEach(([item, answer]) => {
@@ -1058,7 +1367,9 @@ async function launchLiveTrial(skip) {
     // Then begin live LLM steps
     runLiveStep();
   } catch (e) {
-    alert("Trial start error: " + e.message);
+    console.error("[TrialStart] Error:", e);
+    showToast(`Trial start error: ${e.message}`, "error", 6000);
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fas fa-gavel"></i> Begin Trial'; }
   }
 }
 
@@ -1067,6 +1378,7 @@ async function launchLiveTrial(skip) {
 function initDemoButtons() {
   $("demoTheft")    ?.addEventListener("click", () => loadDemo("theft"));
   $("demoContract") ?.addEventListener("click", () => loadDemo("contract"));
+  $("demoVance")    ?.addEventListener("click", () => loadDemo("vance"));
 }
 
 // ── Benchmark ─────────────────────────────────────────────────────────────────
@@ -1079,7 +1391,7 @@ function initBenchmarkButtons() {
 async function runBenchmark(useMock) {
   const caseText = State.caseText || getCaseText();
   if (!caseText.trim()) {
-    alert("Please enter case facts in Setup before running a benchmark.");
+    showToast("Please enter case facts in Setup before running a benchmark.", "warning", 4000);
     return;
   }
 
@@ -1166,10 +1478,11 @@ async function loadDemo(key) {
       sensitivity: data.sensitivity,
       juries:      State.shadowJuries,
       title:       data.title,
+      sentence:    data.sentence || null,
     };
     State.caseTitle   = data.title;
     State.jurisdiction = data.jurisdiction || "—";
-    State.liveStep = "opening";
+    State.liveStep = "discovery";
     State.verdictData = null;
     
     // Mock the graphState for the Demo so the Deliberation UI renders correctly
@@ -1203,7 +1516,8 @@ async function loadDemo(key) {
     }
     stepDemo();
   } catch (e) {
-    alert("Demo load error: " + e.message);
+    console.error("[DemoLoad] Error:", e);
+    showToast("Demo load error: " + e.message, "error", 6000);
   }
 }
 
@@ -1229,6 +1543,68 @@ function finishDemo() {
   State.demoRunning = false;
   State.liveStep = "done";
   stopMetricsTimer();
+  showToast("Trial completed — court is adjourned.", "success", 4000);
+
+  // Build deliberation_snapshot from the demo's deliberation-transcript entries
+  const jurorEntries = State.transcriptEntries.filter(e =>
+    (e.agent === "Juror" || e.agent === "Foreperson") &&
+    (e.phase === "Jury Deliberation" || e.phase === "Deliberation")
+  );
+
+  if (jurorEntries.length > 0) {
+    const positions = [];
+    let guiltyCount = 0, notGuiltyCount = 0, undecidedCount = 0;
+    const cs = State.graphState?.case_type || "Criminal";
+    jurorEntries.forEach((entry, idx) => {
+      const stance = classifyStance(entry.text);
+      if (stance === "guilty") guiltyCount++;
+      else if (stance === "not-guilty") notGuiltyCount++;
+      else undecidedCount++;
+      const jMatch = entry.agent.match(/Juror\s*(\d+)/) || entry.text.match(/Juror\s*#?(\d+)/i);
+      const jId = jMatch ? parseInt(jMatch[1]) : idx + 1;
+      positions.push({
+        juror_id: jId,
+        name: `Juror ${jId}`,
+        occupation: "Citizen juror",
+        persona: "Deliberation",
+        stance: stance === "guilty" ? (cs === "Civil" ? "Liable" : "Guilty")
+              : stance === "not-guilty" ? (cs === "Civil" ? "Not Liable" : "Not Guilty")
+              : "Undecided",
+        quote: entry.text.slice(0, 120),
+      });
+    });
+    State.graphState.deliberation_snapshot = {
+      type: "jury",
+      round: 1,
+      total: positions.length,
+      guilty_or_liable_count: guiltyCount,
+      not_guilty_or_not_liable_count: notGuiltyCount,
+      undecided_count: undecidedCount,
+      verdict: State.demoVerdictData?.verdict || "Hung",
+      rationale: `${guiltyCount} for burden met, ${notGuiltyCount} for burden not met, ${undecidedCount} undecided.`,
+      positions,
+    };
+  }
+
+  // Build shadow_jury_results from demo case data
+  const shadowNarrative = State.demoShadowNarrative || [];
+  if (shadowNarrative.length > 0) {
+    const burdenMetVotes = shadowNarrative.filter(n =>
+      /guilty|liable|coupable|incarcération/i.test(n.content || "")
+    ).length;
+    State.graphState.shadow_jury_results = {
+      win_probability: State.demoVerdictData?.probability || 0.5,
+      burden_met_votes: burdenMetVotes,
+      burden_not_met_votes: shadowNarrative.length - burdenMetVotes,
+      hung_votes: 0,
+      total_juries: shadowNarrative.length,
+      narrative: shadowNarrative.map((n, i) => ({
+        name: n.name || `Shadow Juror ${i + 1}`,
+        content: n.content || "",
+      })),
+    };
+  }
+
   if (State.demoVerdictData) {
     State.verdictData = State.demoVerdictData;
     
@@ -1282,7 +1658,7 @@ function finishDemo() {
 function buildLiveDeliberationSnapshot() {
   const jurorEntries = State.transcriptEntries.filter(e =>
     (e.agent === "Juror" || e.agent === "Foreperson") && 
-    e.phase === "Jury Deliberation"
+    (e.phase === "Jury Deliberation" || e.phase === "Deliberation")
   );
   if (!jurorEntries.length) return null;
 
@@ -1341,6 +1717,7 @@ function buildLiveDeliberationSnapshot() {
 async function runLiveStep() {
   if (State.liveStep === "done" || State.livePaused || State.liveRunning) return;
   State.liveRunning = true;
+  State.phaseStartTime = State.phaseStartTime || performance.now();
 
   updateLiveProgress();
 
@@ -1371,12 +1748,23 @@ async function runLiveStep() {
     await streamLines(msgs, 600);
 
     State.graphState = data.graph_state;
+    State.currentWitnessName = data.graph_state?.current_witness || null;
+
+    const now = performance.now();
+    if (State.phaseStartTime) {
+      const elapsed = ((now - State.phaseStartTime) / 1000).toFixed(1);
+      State.phaseTimings[State.liveStep] = (parseFloat(State.phaseTimings[State.liveStep]) || 0) + parseFloat(elapsed);
+    }
+    State.phaseStartTime = now;
+
     State.liveStep   = data.next_step;
     State.liveRunning = false;
 
     // Update evidence board from state
     syncEvidenceFromState(State.graphState);
     renderClerkSummary();
+    renderMotionRulings();
+    renderDiscoverySummary();
 
     // Build live deliberation snapshot during jury_deliberation phase
     if (data.current_step === "jury_deliberation" || State.liveStep === "jury_deliberation") {
@@ -1407,6 +1795,7 @@ async function runLiveStep() {
 
     if (data.next_step === "done") {
       stopMetricsTimer();
+      showToast("Trial completed — court is adjourned.", "success", 5000);
       if (data.verdict_data) {
         State.verdictData = data.verdict_data;
         renderVerdictView(data.verdict_data);
@@ -1426,6 +1815,7 @@ async function runLiveStep() {
     State.liveRunning = false;
     console.error("Trial step error:", e);
     addSystemMessage("Trial step failed: " + e.message);
+    showToast(`Trial step failed: ${e.message}`, "error");
   }
 }
 
@@ -1482,7 +1872,7 @@ function showHumanInputDialog(question) {
   submitBtn.addEventListener("click", async () => {
     const answer = answerInput.value.trim();
     if (!answer) {
-      alert("Please provide a response");
+      showToast("Please provide a response to the question.", "warning", 3000);
       return;
     }
     
@@ -1512,7 +1902,7 @@ function showHumanInputDialog(question) {
       State.liveRunning = false;
       runLiveStep();
     } catch (e) {
-      alert("Error: " + e.message);
+      showToast("Error: " + e.message, "error", 5000);
       submitBtn.disabled = false;
       submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Response';
     }
@@ -1551,11 +1941,14 @@ function addTranscriptEntry(agent, text, phase) {
 
   const row = document.createElement("div");
   row.className = "msg-row";
+  const expertWitnesses = State.graphState?.expert_witnesses || [];
+  const isExpert = agent === "Witness" && State.currentWitnessName && expertWitnesses.includes(State.currentWitnessName);
+  const expertTag = isExpert ? `<span class="expert-badge">EXPERT</span>` : "";
   row.innerHTML = `
     <div class="msg-avatar ${avClass}">${abbr}</div>
     <div class="msg-content">
       <div class="msg-name" style="color:${color}">
-        ${escapeHtml(agent)}
+        ${escapeHtml(agent)}${expertTag}
         ${phase ? `<span class="role-tag ${avClass}">${escapeHtml(phase)}</span>` : ""}
         <span style="font-size:0.65rem;color:var(--text-tertiary);font-weight:400;margin-left:auto">${time}</span>
       </div>
@@ -1679,23 +2072,31 @@ function updateNavBar(title, jurisdiction, status) {
 // ── Live progress display ─────────────────────────────────────────────────────
 
 const STEP_LABELS = {
+  "discovery":         "Discovery Disclosure",
+  "motions":           "Pre-Trial Motions",
   "opening":           "Opening Statements",
   "evidence":          "Evidence Presentation",
   "witness":           "Witness Examination",
+  "rebuttal":          "Rebuttal Evidence",
   "closing":           "Closing Arguments",
   "jury_instructions": "Jury Instructions",
   "jury_deliberation": "Jury Deliberation",
   "shadow_jury":       "Shadow Jury Analysis",
+  "sentencing":        "Sentencing Hearing",
 };
 
 function updateLiveProgress() {
-  const STEPS = ["opening", "evidence", "witness", "closing", "jury_instructions", "jury_deliberation", "shadow_jury"];
+  const STEPS = ["discovery", "motions", "opening", "evidence", "witness", "rebuttal", "closing", "jury_instructions", "jury_deliberation", "shadow_jury", "sentencing"];
   const idx   = STEPS.indexOf(State.liveStep);
   const label = STEP_LABELS[State.liveStep] || State.liveStep;
-  const pct   = Math.round(((idx + 1) / STEPS.length) * 100);
+  const pct   = idx >= 0 ? Math.round(((idx + 1) / STEPS.length) * 100) : 0;
 
   const lbl = $("liveProgressLabel");
-  if (lbl) lbl.textContent = `${label} (${idx + 1}/${STEPS.length})`;
+  if (lbl) {
+    const elapsed = State.phaseStartTime ? Math.round((performance.now() - State.phaseStartTime) / 1000) : 0;
+    const etas = elapsed > 0 ? ` (${elapsed}s elapsed)` : "";
+    lbl.textContent = `${label}${etas} — ${idx + 1}/${STEPS.length}`;
+  }
 }
 
 // ── Verdict view rendering ────────────────────────────────────────────────────
@@ -1749,6 +2150,8 @@ function renderVerdictView(vd) {
     if (vSub)  vSub.textContent = "Awaiting verdict...";
     if (gNum)  gNum.textContent = "—";
     if (gSub)  gSub.textContent = "Run a trial to see results";
+    const sentCard = $("sentencingCard");
+    if (sentCard) sentCard.style.display = "none";
     renderVerdictCharts(null);
     renderCaseRecordSummary();
     renderShadowJuryConversation();
@@ -1765,11 +2168,27 @@ function renderVerdictView(vd) {
   if (vText) { vText.textContent = verdict; vText.style.color = color; }
   if (vSub)  vSub.textContent = vd.sensitivity || "";
 
+  const sentCard = $("sentencingCard");
+  if (sentCard) {
+    const isSentencing = upper.includes("GUILTY") || upper.includes("LIABLE");
+    if (isSentencing && vd.sentence) {
+      sentCard.style.display = "";
+      const sText = $("sentenceText");
+      const sTerm = $("sentenceTerm");
+      const sRationale = $("sentenceRationale");
+      if (sText) sText.textContent = vd.sentence.sentence || "";
+      if (sTerm) sTerm.textContent = vd.sentence.term || "";
+      if (sRationale) sRationale.textContent = vd.sentence.rationale || "";
+    } else {
+      sentCard.style.display = "none";
+    }
+  }
+
   const gNum  = $("gaugeNumber");
   const gSub  = $("gaugeSub");
   const sjr = State.graphState?.shadow_jury_results || {};
   if (gNum)  { gNum.textContent = pct + "%"; gNum.style.color = pct < 50 ? "#0a84ff" : pct < 75 ? "#ff9f0a" : "#ff453a"; }
-  if (gSub)  gSub.textContent = `${sjr.guilty_votes || 0} of ${vd.juries || sjr.total_juries || State.shadowJuries || 0} shadow juries found burden met`;
+  if (gSub)  gSub.textContent = `${sjr.burden_met_votes ?? sjr.guilty_votes ?? 0} of ${vd.juries || sjr.total_juries || State.shadowJuries || 0} shadow juries found burden met`;
 
   renderVerdictCharts(pct);
   renderCaseRecordSummary();
@@ -2146,24 +2565,44 @@ window.addEventListener("resize", () => {
 function renderObjectionHistory() {
   const container = $("objectionHistoryContainer");
   if (!container) return;
-  
-  if (State.objectionHistory.length === 0) {
+
+  const structuredObjs = State.graphState?.objection_history || [];
+  const liveObjs = State.objectionHistory || [];
+  const allObjs = [...liveObjs];
+
+  for (const sobj of structuredObjs) {
+    const exists = allObjs.some(o => o.text && o.text.includes(sobj.evidence));
+    if (!exists) {
+      allObjs.push({
+        who: sobj.objector || "Unknown",
+        text: `${sobj.objection_type ? sobj.objection_type.toUpperCase() : "Objection"} — ${sobj.rationale || ""}`,
+        ruling: sobj.ruling || "Recorded",
+        objection_type: sobj.objection_type || "objection",
+        rule_cited: sobj.rule_cited || "",
+        ruling_rationale: sobj.ruling_rationale || "",
+        source: "structured",
+      });
+    }
+  }
+
+  if (allObjs.length === 0) {
     container.innerHTML = `<div style="font-size:0.78rem;color:var(--muted)">No objections yet.</div>`;
     return;
   }
-  
-  container.innerHTML = State.objectionHistory.map((obj, idx) => {
+
+  container.innerHTML = allObjs.reverse().map((obj, idx) => {
     const fullText = obj.text || "";
     const truncated = fullText.length > 120 ? fullText.slice(0, 120) + "..." : fullText;
-    const needsToggle = fullText.length > 120;
-    const rulingCls = (obj.ruling || "").toLowerCase().includes("sustained") ? "sustained" 
+    const rulingCls = (obj.ruling || "").toLowerCase().includes("sustained") ? "sustained"
                     : (obj.ruling || "").toLowerCase().includes("overruled") ? "overruled" : "";
-    
+    const objType = obj.objection_type || "";
+    const objTypeLabel = objType ? `<span class="obj-type-badge">${objType.toUpperCase()}</span>` : "";
+    const ruleCited = obj.rule_cited ? `<div style="font-size:0.65rem;color:var(--gold);margin-top:2px;">${escapeHtml(obj.rule_cited)}</div>` : "";
+
     return `
     <div class="obj-item">
-      <div class="obj-who">${escapeHtml(obj.who || obj.agent || "Unknown")}</div>
-      <div class="obj-reason">${escapeHtml(truncated)}</div>
-      ${needsToggle ? `<button class="obj-toggle" onclick="toggleObjectionText(${idx}, this)" style="background:none;border:none;color:var(--accent);font-size:0.7rem;cursor:pointer;padding:0;margin-bottom:4px">Show more</button>` : ""}
+      <div class="obj-who">${escapeHtml(obj.who || obj.agent || "Unknown")} ${objTypeLabel}</div>
+      <div class="obj-reason">${escapeHtml(truncated)}</div>${ruleCited}
       <div class="obj-ruling">
         <span class="ruling-result ${rulingCls}">${escapeHtml((obj.ruling || "Recorded").toUpperCase())}</span>
         ${obj.time ? `<span style="font-size:0.65rem;color:var(--muted);margin-left:6px">${obj.time}</span>` : ""}
@@ -2204,6 +2643,48 @@ function renderClerkSummary() {
   `;
 }
 
+function renderMotionRulings() {
+  const container = $("motionRulingsContainer");
+  const section = $("motionRulingsSection");
+  if (!container || !section) return;
+  const rulings = State.graphState?.motion_rulings || [];
+  if (rulings.length === 0) {
+    section.style.display = "none";
+    return;
+  }
+  section.style.display = "";
+  container.innerHTML = rulings.map(r => {
+    const granted = (r.ruling || "").toUpperCase() === "GRANTED";
+    const color = granted ? "var(--defense)" : "var(--prosecutor)";
+    return `
+    <div class="obj-item" style="border-left-color:${color};margin-bottom:8px">
+      <div class="obj-who">${escapeHtml(r.movant || "Unknown")} — ${escapeHtml(r.motion_type || "Motion")}</div>
+      <div class="obj-reason" style="font-size:0.7rem;">${escapeHtml((r.arguing || "").slice(0, 100))}</div>
+      <div class="obj-ruling">
+        <span class="ruling-result ${granted ? 'overruled' : 'sustained'}">${escapeHtml((r.ruling || "").toUpperCase())}</span>
+      </div>
+      <div style="font-size:0.65rem;color:var(--muted);margin-top:2px;">${escapeHtml((r.rationale || "").slice(0, 120))}</div>
+    </div>`;
+  }).join("");
+}
+
+function renderDiscoverySummary() {
+  const container = $("discoveryContainer");
+  const section = $("discoverySection");
+  if (!container || !section) return;
+  const prosDisc = State.graphState?.disclosed_prosecution || [];
+  const defDisc = State.graphState?.disclosed_defense || [];
+  if (prosDisc.length === 0 && defDisc.length === 0) {
+    section.style.display = "none";
+    return;
+  }
+  section.style.display = "";
+  container.innerHTML = `
+    ${prosDisc.length ? `<div style="margin-bottom:8px"><b style="color:var(--prosecutor);font-size:0.7rem;">PROSECUTION</b>${prosDisc.map(i => `<div class="obj-item" style="font-size:0.7rem;border-left-color:var(--prosecutor);padding:6px 8px;margin:3px 0">${escapeHtml(i)}</div>`).join("")}</div>` : ""}
+    ${defDisc.length ? `<div><b style="color:var(--defense);font-size:0.7rem;">DEFENCE</b>${defDisc.map(i => `<div class="obj-item" style="font-size:0.7rem;border-left-color:var(--defense);padding:6px 8px;margin:3px 0">${escapeHtml(i)}</div>`).join("")}</div>` : ""}
+  `;
+}
+
 function renderDeliberationView() {
   const benchNotice = $("benchNotice");
   if (benchNotice) {
@@ -2227,11 +2708,14 @@ function renderConsensusRows() {
   const snapshot = State.graphState?.deliberation_snapshot || {};
   const sjr = State.graphState?.shadow_jury_results || {};
   const total = snapshot.total || sjr.total_juries || State.verdictData?.juries || 0;
-  const burdenMet = snapshot.guilty_or_liable_count ?? sjr.guilty_votes ?? null;
-  const burdenNotMet = snapshot.not_guilty_or_not_liable_count ?? (burdenMet === null ? null : Math.max(total - burdenMet, 0));
-  const undecided = snapshot.undecided_count ?? (total && burdenMet !== null ? 0 : 1);
+  const sjBurdenMet = sjr.burden_met_votes ?? sjr.guilty_votes ?? null;
+  const burdenMet = snapshot.guilty_or_liable_count ?? sjBurdenMet;
+  const sjBurdenNot = sjr.burden_not_met_votes ?? (sjBurdenMet !== null ? Math.max(total - sjBurdenMet, 0) : null);
+  const burdenNotMet = snapshot.not_guilty_or_not_liable_count ?? sjBurdenNot;
+  const undecided = snapshot.undecided_count ?? (total && burdenMet !== null ? 0 : 0);
   const status = snapshot.verdict
     ? `${snapshot.type === "bench" ? "Bench verdict" : "Jury status"}: ${snapshot.verdict}`
+    : sjr.total_juries ? `Shadow jury: ${sjBurdenMet} of ${sjr.total_juries} found burden met`
     : "Awaiting deliberation";
   if (clock) clock.textContent = State.metrics.duration ? `${formatDuration(State.metrics.duration)} elapsed · ${status}` : status;
 
@@ -2261,6 +2745,7 @@ function renderDeliberationTranscript() {
   const el = $("deliberationTranscriptContainer");
   if (!el) return;
   const snapshot = State.graphState?.deliberation_snapshot || {};
+  const shadowNarrative = State.graphState?.shadow_jury_results?.narrative || [];
   const snapshotEntries = (snapshot.positions || []).map(position => ({
     agent: position.name || `Juror ${position.juror_id}`,
     phase: snapshot.type === "bench" ? "Bench Deliberation" : `Round ${snapshot.round || 1}`,
@@ -2268,8 +2753,21 @@ function renderDeliberationTranscript() {
   }));
   const entries = snapshotEntries.length ? snapshotEntries : State.transcriptEntries.filter(e =>
     /deliberation|shadow jury|jury instructions|verdict/i.test(e.phase || "") ||
-    (e.phase === "Jury Deliberation" && e.agent !== "Judge" && e.agent !== "System")
+    ((e.phase === "Jury Deliberation" || e.phase === "Deliberation") && e.agent !== "Judge" && e.agent !== "System")
   );
+  // Fallback: show shadow jury narrative from graph state
+  if (!entries.length && shadowNarrative.length) {
+    el.innerHTML = shadowNarrative.map(s => {
+      const agentName = s.name || "Shadow Juror";
+      const color = AGENT_COLOR[agentName] || "var(--gold)";
+      return `
+        <div class="bubble" style="border-left-color:${color};margin-bottom:10px">
+          <div class="speaker" style="color:${color}">${escapeHtml(agentName)} <span class="tag" style="background:rgba(0,0,0,0.06);color:${color}">Shadow Jury</span></div>
+          ${escapeHtml(s.content || "")}
+        </div>`;
+    }).join("");
+    return;
+  }
   if (!entries.length) {
     el.innerHTML = '<div style="font-size:0.8rem;color:var(--muted);padding:10px">Awaiting deliberation phase.</div>';
     return;
@@ -2590,18 +3088,18 @@ function replaySavedTrial(trialId) {
   try {
     docket = JSON.parse(localStorage.getItem(DOCKET_KEY) || "[]");
   } catch {
-    alert("Could not load saved trials.");
+    showToast("Could not load saved trials.", "error", 4000);
     return;
   }
   
   const trial = docket.find(t => t.id === trialId);
   if (!trial) {
-    alert("Trial not found.");
+    showToast("Trial not found in docket.", "error", 4000);
     return;
   }
   
   if (!trial.fullTranscript || !trial.fullTranscript.length) {
-    alert("This trial cannot be replayed (no transcript data).");
+    showToast("This trial cannot be replayed (no transcript data).", "warning", 4000);
     return;
   }
   
@@ -2616,7 +3114,7 @@ function replaySavedTrial(trialId) {
   State.demoRunning = true;
   State.caseTitle = trial.title;
   State.jurisdiction = trial.jurisdiction;
-  State.liveStep = "opening";
+  State.liveStep = "discovery";
   State.verdictData = null;
   
   State.demoVerdictData = trial.verdictData || {
@@ -2625,6 +3123,7 @@ function replaySavedTrial(trialId) {
     sensitivity: trial.sensitivity || "",
     juries: State.shadowJuries,
     title: trial.title,
+    sentence: trial.sentence || null,
   };
   
   State.demoShadowNarrative = trial.shadowJuryNarrative || [];

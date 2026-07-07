@@ -1,0 +1,17 @@
+# State v. Emilia Vance — Double Homicide by Arson
+
+The defendant, Emilia Vance, is charged with two counts of first-degree murder and one count of arson. On September 12th, a fire destroyed the Northside Storage warehouse in Los Angeles County, California, killing night security guards Richard Torres and Dana Kim. The prosecution alleges Vance, the warehouse's former manager, set the fire to destroy evidence of an ongoing $340,000 embezzlement scheme she was running from the warehouse's accounts. Forensic fire investigator Dr. Marcus Chen identified an accelerant pour pattern at three separate origin points in the southeast quadrant, consistent with deliberate ignition using gasoline. Cell tower records from AT&T place Vance's phone (device #310-555-0198) connecting to tower 847, which covers a 1,200-foot radius that includes the warehouse, at 11:27 PM — 10 minutes before the first 911 call. Security guard Paul Brennan reported seeing a woman matching Vance's description (dark coat, shoulder-length brown hair, approximately five-foot-six) fleeing the east entrance at 11:35 PM and getting into a silver sedan. Brennan was fired by Vance six months prior for theft of $8,200 worth of copper fittings from the warehouse and has a prior conviction for perjury in 2019 for lying under oath in a civil deposition. A hardware store receipt dated September 10th at 4:15 PM shows a cash purchase of two 5-gallon gas cans signed 'E. Vance.' No fingerprints or DNA link Vance to the scene. Vance claims she was home watching television at 1842 Oakdale Drive; her brother James confirms she was there but admits he was asleep from 10 PM to 7 AM. James owns a silver sedan. The defence will call electrical engineer Dr. Priya Sharma to testify that corroded wiring in the building's eastern corridor could have caused an electrical fire.
+
+Key evidence:
+- Exhibit A: Dr. Marcus Chen's accelerant residue analysis showing gasoline at three separate origin points
+- Exhibit B: Hardware store receipt dated September 10th for two 5-gallon gas cans signed 'E. Vance'
+- Exhibit C: Crime scene photographs showing victims' remains relative to fire origin points
+- Exhibit D: Dr. Priya Sharma's electrical inspection report documenting corroded wiring in the eastern corridor
+- AT&T cell tower records for device #310-555-0198
+
+Witnesses:
+- Dr. Marcus Chen: Chief Fire Investigator, California State Fire Marshal's Office. Ph.D. in Combustion Chemistry from Stanford, 22 years of experience, 47 trials, 18 peer-reviewed papers. Certified by the National Association of Fire Investigators. Will testify that three simultaneous gasoline fires at separate locations with no electrical connections is inconsistent with any natural or electrical cause.
+- Paul Brennan: Security guard and eyewitness. Fired by Vance for theft six months before the fire. Convicted of perjury in 2019 (six months served). Testimony has been consistent with initial 911 call and deposition.
+- Detective Paula Reyes: Arson Investigation Unit. Testifies regarding cell tower data and investigation.
+- Emilia Vance: Defendant. Claims she was home all night, cannot explain phone near warehouse, denies receipt signature is hers (claims she never signs as 'E. Vance').
+- James Vance: Defendant's brother. Confirms sister was home at 9 PM, asleep from 10 PM, car in driveway in morning. Admits she had a key to his silver sedan.

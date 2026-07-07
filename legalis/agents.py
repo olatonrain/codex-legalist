@@ -13,7 +13,7 @@ Responsibilities:
 from __future__ import annotations
 
 import json as _json
-import html as _html
+import re as _re
 from typing import Any
 
 from src.llm import get_llm
@@ -140,17 +140,15 @@ def generate_dramatic_opening(
     )
 
     try:
-        llm = get_llm(temperature=0.4, model=AGENT_MODELS.get("Judge", "qwen-max"))
+        llm = get_llm(temperature=0.4, model=AGENT_MODELS.get("Judge", "qwen3.7-max"))
         response = llm.invoke(prompt)
         raw = response.content if hasattr(response, "content") else str(response)
 
         # Strip markdown fences if present
         raw = raw.strip()
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        raw = raw.strip().rstrip("`").strip()
+        fence_match = _re.match(r'^```(?:json)?\s*\n(.*?)\n```', raw, _re.DOTALL)
+        if fence_match:
+            raw = fence_match.group(1).strip()
 
         entries = _json.loads(raw)
         if isinstance(entries, list) and entries:
@@ -172,18 +170,24 @@ def generate_dramatic_opening(
 # ── Live Trial Step Runner ────────────────────────────────────────────────────
 
 _LIVE_STEPS = [
-    "opening", "evidence", "witness", "closing",
-    "jury_instructions", "jury_deliberation", "shadow_jury",
+    "discovery", "motions", "opening", "evidence", "witness", "rebuttal",
+    "closing", "jury_instructions", "jury_deliberation", "shadow_jury",
+    "sentencing", "reporter",
 ]
 
 _STEP_LABELS = {
+    "discovery":         "Discovery Disclosure",
+    "motions":           "Pre-Trial Motions",
     "opening":           "Opening Statements",
     "evidence":          "Evidence Presentation",
     "witness":           "Witness Examination",
+    "rebuttal":          "Rebuttal Evidence",
     "closing":           "Closing Arguments",
     "jury_instructions": "Jury Instructions",
     "jury_deliberation": "Jury Deliberation",
     "shadow_jury":       "Shadow Jury Analysis",
+    "sentencing":        "Sentencing Hearing",
+    "reporter":          "Court Reporter Log",
 }
 
 
@@ -197,19 +201,26 @@ def run_trial_step(live_step: str, graph_state: dict) -> tuple[list[dict], dict,
         next_step   – the key for the next phase, or "done"
     """
     from src.nodes import (
+        discovery_node, motion_practice_node,
         opening_statements_node, evidence_node, witness_node,
-        closing_arguments_node, jury_instructions_node,
-        jury_deliberation_node, shadow_jury_node,
+        rebuttal_evidence_node, closing_arguments_node,
+        jury_instructions_node, jury_deliberation_node,
+        shadow_jury_node, sentencing_node, reporter_node,
     )
 
     node_map = {
+        "discovery":         discovery_node,
+        "motions":           motion_practice_node,
         "opening":           opening_statements_node,
         "evidence":          evidence_node,
         "witness":           witness_node,
+        "rebuttal":          rebuttal_evidence_node,
         "closing":           closing_arguments_node,
         "jury_instructions": jury_instructions_node,
         "jury_deliberation": jury_deliberation_node,
         "shadow_jury":       shadow_jury_node,
+        "sentencing":        sentencing_node,
+        "reporter":          reporter_node,
     }
 
     node_fn = node_map.get(live_step)
@@ -220,21 +231,28 @@ def run_trial_step(live_step: str, graph_state: dict) -> tuple[list[dict], dict,
     try:
         result = node_fn(graph_state)
     except Exception as node_exc:
-        # Graceful degradation: surface the error as a system message rather than
-        # crashing the whole trial. The trial can still continue.
         error_text = f"[Phase error in {_STEP_LABELS.get(live_step, live_step)}] {node_exc}"
         logger.error(error_text)
-        return [
-            {"agent": "System", "text": error_text, "phase": _STEP_LABELS.get(live_step, live_step)}
-        ], graph_state, _next_step_after(live_step, graph_state)
+        phase_label = _STEP_LABELS.get(live_step, live_step)
+        next_step = _next_step_after(live_step, graph_state)
+        messages = [{"agent": "System", "text": error_text, "phase": phase_label}]
+
+        if next_step == "done":
+            messages.append({"agent": "Bailiff", "text": f"All matters in this phase have been heard. The court will now adjourn.", "phase": phase_label})
+            messages.append({"agent": "Bailiff", "text": "This court is adjourned.", "phase": "done"})
+        else:
+            next_label = _STEP_LABELS.get(next_step, next_step)
+            messages.append({"agent": "Bailiff", "text": f"The court will now proceed to the {next_label.lower()}.", "phase": phase_label})
+
+        return messages, graph_state, next_step
 
     messages: list[dict] = []
 
-    # Add phase divider before phase messages
     phase_label = _STEP_LABELS.get(live_step, live_step)
+
     messages.append({
-        "agent": "System",
-        "text": f"--- {phase_label} ---",
+        "agent": "Bailiff",
+        "text": f"The court is now in session for the {phase_label.lower()}.",
         "phase": phase_label,
     })
 
@@ -242,7 +260,6 @@ def run_trial_step(live_step: str, graph_state: dict) -> tuple[list[dict], dict,
         if key == "transcript":
             graph_state["transcript"] = graph_state.get("transcript", []) + val
             for msg in val:
-                # Entries can be AIMessage objects OR plain dicts — handle both
                 if isinstance(msg, dict):
                     agent = norm_agent(msg.get("name") or msg.get("agent"))
                     text  = sanitise_content(msg.get("content") or msg.get("text", ""))
@@ -257,8 +274,27 @@ def run_trial_step(live_step: str, graph_state: dict) -> tuple[list[dict], dict,
         else:
             graph_state[key] = val
 
-    # ── Decide next step ─────────────────────────────────────────────────────
     next_step = _next_step_after(live_step, graph_state)
+
+    if next_step == "done":
+        messages.append({
+            "agent": "Bailiff",
+            "text": "All matters have been heard. The court will now adjourn.",
+            "phase": phase_label,
+        })
+        messages.append({
+            "agent": "Bailiff",
+            "text": "This court is adjourned.",
+            "phase": "done",
+        })
+    else:
+        next_label = _STEP_LABELS.get(next_step, next_step)
+        messages.append({
+            "agent": "Bailiff",
+            "text": f"The court will now proceed to the {next_label.lower()}.",
+            "phase": phase_label,
+        })
+
     return messages, graph_state, next_step
 
 
@@ -268,17 +304,29 @@ def _next_step_after(live_step: str, graph_state: dict) -> str:
     rounds  = graph_state.get("deliberation_rounds", 0)
     verdict = graph_state.get("main_verdict")
 
-    if live_step == "opening":
+    if live_step == "discovery":
+        return "motions"
+    elif live_step == "motions":
+        return "opening"
+    elif live_step == "opening":
         return "evidence"
     elif live_step == "evidence":
-        return "witness" if wq else "closing"
+        return "witness" if wq else "rebuttal"
     elif live_step == "witness":
-        return "witness" if wq else "closing"
+        return "witness" if wq else "rebuttal"
+    elif live_step == "rebuttal":
+        return "closing"
     elif live_step == "closing":
-        return "done" if verdict else "jury_instructions"
+        return "shadow_jury" if verdict else "jury_instructions"
     elif live_step == "jury_instructions":
         return "jury_deliberation"
     elif live_step == "jury_deliberation":
         return "shadow_jury" if (verdict or rounds >= 3) else "jury_deliberation"
-    else:  # shadow_jury or unknown
+    elif live_step == "shadow_jury":
+        return "sentencing" if verdict in ("Guilty", "Liable") else "reporter"
+    elif live_step == "sentencing":
+        return "reporter"
+    elif live_step == "reporter":
+        return "done"
+    else:
         return "done"

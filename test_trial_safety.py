@@ -3,47 +3,13 @@ from unittest.mock import patch
 
 from legalis.agents import run_trial_step
 from src.nodes import evidence_node, opening_statements_node
+from src.state import create_initial_state
 
 
 def _state(case_description="hello", live_step="opening"):
-    return {
-        "case_description": case_description,
-        "transcript": [],
-        "fact_sheet": "",
-        "admitted_evidence": [],
-        "excluded_evidence": [],
-        "clarifying_questions": [],
-        "human_answers": {},
-        "missing_evidence_answers": {},
-        "missing_witnesses_answers": {},
-        "pending_human_question": None,
-        "human_input_buffer": [],
-        "witness_queue": [],
-        "current_witness": None,
-        "examination_phase": None,
-        "shadow_jury_count": 1,
-        "shadow_jury_model": "qwen-plus-latest",
-        "jury_count": 12,
-        "audio_enabled": False,
-        "deliberation_rounds": 0,
-        "jury_profiles": [],
-        "deliberation_snapshot": {},
-        "main_verdict": None,
-        "shadow_jury_results": {},
-        "multimodal_evidence": [],
-        "errors": [],
-        "country": "Nigeria",
-        "jurisdiction_system": "Common Law",
-        "jurisdiction_procedure": "adversarial",
-        "criminal_standard": "Beyond reasonable doubt",
-        "civil_standard": "Balance of probabilities",
-        "evidence_rules": "Evidence Act 2011; Administration of Criminal Justice Act 2015 (ACJA)",
-        "jury_enabled": False,
-        "cross_examination": True,
-        "court_address": "My Lord / Your Lordship",
-        "case_type": "Criminal",
-        "live_step": live_step,
-    }
+    state = create_initial_state(case_description=case_description)
+    state["live_step"] = live_step
+    return state
 
 
 class TrialSafetyTests(unittest.TestCase):

@@ -25,7 +25,6 @@ import random
 import re
 import time
 from typing import Dict, List
-from unittest.mock import patch, MagicMock
 from langchain_core.messages import AIMessage
 
 
@@ -198,44 +197,23 @@ def run_multi_agent_trial(case_description: str, use_mock: bool = False) -> Dict
         }
     
     from src.graph import app as compiled_graph
-    
-    initial_state = {
-        "case_description": case_description,
-        "transcript": [],
-        "fact_sheet": "",
-        "admitted_evidence": [],
-        "excluded_evidence": [],
-        "clarifying_questions": [],
-        "human_answers": {},
-        "missing_evidence_answers": {},
-        "missing_witnesses_answers": {},
-        "pending_human_question": None,
-        "human_input_buffer": [],
-        "witness_queue": [],
-        "current_witness": None,
-        "examination_phase": None,
-        "shadow_jury_count": 2,
-        "shadow_jury_model": "qwen-plus-latest",
-        "jury_count": 4,
-        "audio_enabled": False,
-        "deliberation_rounds": 0,
-        "jury_profiles": [],
-        "deliberation_snapshot": {},
-        "main_verdict": None,
-        "shadow_jury_results": {},
-        "multimodal_evidence": [],
-        "errors": [],
-        "country": "United States",
-        "jurisdiction_system": "Common Law",
-        "jurisdiction_procedure": "adversarial",
-        "criminal_standard": "Beyond a reasonable doubt",
-        "civil_standard": "Preponderance of the evidence",
-        "evidence_rules": "Federal Rules of Evidence",
-        "jury_enabled": True,
-        "cross_examination": True,
-        "court_address": "Your Honor",
-        "case_type": "Criminal",
-    }
+    from src.state import create_initial_state
+
+    initial_state = create_initial_state(
+        case_description=case_description,
+        country="United States",
+        jurisdiction_system="Common Law",
+        jurisdiction_procedure="adversarial",
+        criminal_standard="Beyond a reasonable doubt",
+        civil_standard="Preponderance of the evidence",
+        evidence_rules="Federal Rules of Evidence",
+        jury_enabled=True,
+        cross_examination=True,
+        court_address="Your Honor",
+        case_type="Criminal",
+        shadow_jury_count=2,
+        jury_count=4,
+    )
     
     start = time.time()
     try:
@@ -309,22 +287,16 @@ def run_benchmark(case_description: str, num_runs: int = 3, use_mock: bool = Fal
     print("\nRunning single-agent trials...")
     for i in range(num_runs):
         print(f"  Run {i+1}/{num_runs}...", end=" ")
-        start = time.time()
         result = run_single_agent_trial(case_description, use_mock)
-        elapsed = time.time() - start
-        result["time"] = elapsed
         single_results.append(result)
-        print(f"Verdict: {result['verdict']} ({elapsed:.2f}s)")
-    
+        print(f"Verdict: {result['verdict']} ({result['time']:.2f}s)")
+
     print("\nRunning multi-agent trials...")
     for i in range(num_runs):
         print(f"  Run {i+1}/{num_runs}...", end=" ")
-        start = time.time()
         result = run_multi_agent_trial(case_description, use_mock)
-        elapsed = time.time() - start
-        result["time"] = elapsed
         multi_results.append(result)
-        print(f"Verdict: {result['verdict']} ({elapsed:.2f}s)")
+        print(f"Verdict: {result['verdict']} ({result['time']:.2f}s)")
     
     # Calculate metrics
     single_verdicts = [r["verdict"] for r in single_results]

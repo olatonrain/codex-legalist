@@ -1,0 +1,13 @@
+# Nexus Corp. v. Aether Labs — Breach of Non-Disclosure Agreement
+
+Nexus Corp. alleges that Aether Laboratories violated a signed Non-Disclosure Agreement dated January 15, 2023 by sharing proprietary battery cathode schematics with PowerCell Inc., a direct competitor. Clause 3.1 of the NDA states: "All technical specifications, schematics, test data, and manufacturing processes shared during the partnership are confidential and shall not be disclosed to any third party." The evidence includes an email from Aether's CTO, Samir Patel, to PowerCell CTO Gina Torres dated July 8, 2023, attaching a file named 'NX-Battery-Specs-v3.pdf' — a reference to Nexus's internal project code. Nexus alleges that within six months of receiving the NX-7 battery cathode specifications under the NDA, Aether shared them with PowerCell, which subsequently released a competing product (PC-900) that is a 94% structural match to the NX-7 design. Aether claims it independently developed cathode layering techniques at its Fremont facility before the NDA, and that cathode layering is a standard industry technique published in open-access journals since 2009, not proprietary technology covered by the NDA.
+
+Key evidence:
+- Exhibit A: Signed NDA between Nexus Corp. and Aether Labs dated January 15, 2023, Clause 3.1 covering all technical specifications
+- Exhibit B: Email from Aether CTO Samir Patel to PowerCell CTO Gina Torres, July 8, 2023, attaching file named 'NX-Battery-Specs-v3.pdf'
+- Exhibit C: Aether's internal research logs dated April 2021 through January 2023, documenting cathode layering experiments at Aether's Fremont facility (authenticated by Dr. Mehta)
+- Dr. Helen Marsh's comparative materials analysis report showing 94% structural match between NX-7 and PC-900
+
+Witnesses:
+- Dr. Helen Marsh: Lead Materials Engineer at Nexus Corp. Ph.D. in Materials Science from MIT, 14 years of experience, 7 patents in lithium-ion cathode architecture, 22 peer-reviewed papers. Will testify that the specific combination of three thickness ratios plus the exact nickel-aluminium dopant sequence is unique and exists nowhere in published literature. The probability of independent development is less than 0.001%.
+- Dr. Raj Mehta: Independent materials scientist retained by Aether's law firm at $750/hour. Will testify that cathode layering is standard industry practice since 2009 and was not examined the PowerCell PC-900 physical product himself. Analysis based solely on Aether's disclosed documents.

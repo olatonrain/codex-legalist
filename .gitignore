@@ -21,9 +21,6 @@ env/
 .venv/
 .env/
 
-# ── Streamlit ─────────────────────────────────────────────────────
-.streamlit/secrets.toml
-
 # ── OS / Editor ──────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
@@ -33,6 +30,7 @@ Thumbs.db
 
 # ── Generated output ──────────────────────────────────────────────
 official_court_record.md
+output/
 benchmark_results.json
 *.log
 
@@ -41,3 +39,4 @@ benchmark_results.json
 
 # ── AI Assistant Config ──────────────────────────────────────────
 AGENTS.md
+project-rules.md

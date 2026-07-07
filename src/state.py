@@ -1,6 +1,72 @@
 from typing import TypedDict, List, Dict, Any, Optional
 from langchain_core.messages import BaseMessage
 
+
+def create_initial_state(
+    case_description: str = "",
+    country: str = "Nigeria",
+    jurisdiction_system: str = "Common Law",
+    jurisdiction_procedure: str = "adversarial",
+    criminal_standard: str = "Beyond reasonable doubt",
+    civil_standard: str = "Balance of probabilities",
+    evidence_rules: str = "Evidence Act 2011; Administration of Criminal Justice Act 2015 (ACJA)",
+    jury_enabled: bool = False,
+    cross_examination: bool = True,
+    court_address: str = "My Lord / Your Lordship",
+    case_type: str = "Criminal",
+    shadow_jury_count: int = 20,
+    jury_count: int = 12,
+    **overrides,
+) -> dict:
+    state = {
+        "case_description": case_description,
+        "transcript": [],
+        "fact_sheet": "",
+        "admitted_evidence": [],
+        "excluded_evidence": [],
+        "clarifying_questions": [],
+        "human_answers": {},
+        "missing_evidence_answers": {},
+        "missing_witnesses_answers": {},
+        "pending_human_question": None,
+        "human_input_buffer": [],
+        "witness_queue": [],
+        "current_witness": None,
+        "examination_phase": None,
+        "shadow_jury_count": shadow_jury_count,
+        "shadow_jury_model": "qwen-plus-latest",
+        "jury_count": jury_count,
+        "audio_enabled": False,
+        "deliberation_rounds": 0,
+        "jury_profiles": [],
+        "deliberation_snapshot": {},
+        "main_verdict": None,
+         "shadow_jury_results": {},
+        "errors": [],
+        "sentence": None,
+        "rebuttal_rounds": 0,
+        "objection_history": [],
+        "impeachment_attempts": [],
+        "expert_witnesses": [],
+        "motion_rulings": [],
+        "disclosed_prosecution": [],
+        "disclosed_defense": [],
+        "trial_log": {},
+        "country": country,
+        "jurisdiction_system": jurisdiction_system,
+        "jurisdiction_procedure": jurisdiction_procedure,
+        "criminal_standard": criminal_standard,
+        "civil_standard": civil_standard,
+        "evidence_rules": evidence_rules,
+        "jury_enabled": jury_enabled,
+        "cross_examination": cross_examination,
+        "court_address": court_address,
+        "case_type": case_type,
+    }
+    state.update(overrides)
+    return state
+
+
 class TrialState(TypedDict):
     # ── Core Data ─────────────────────────────────────────────────
     case_description: str
@@ -37,6 +103,14 @@ class TrialState(TypedDict):
     witness_queue: List[str]
     current_witness: Optional[str]
     examination_phase: Optional[str]   # 'direct', 'cross', or 'redirect'
+    rebuttal_rounds: int          # 0 or 1 — rebuttal runs once
+    objection_history: List[Dict[str, Any]]  # log of objections and rulings
+    impeachment_attempts: List[Dict[str, Any]]  # impeachment log per witness
+    expert_witnesses: List[str]   # witnesses qualified as experts
+    motion_rulings: List[Dict[str, Any]]  # pre-trial motion rulings
+    disclosed_prosecution: List[str]  # prosecution's disclosed evidence
+    disclosed_defense: List[str]   # defence's disclosed evidence
+    trial_log: Dict[str, Any]      # court reporter's structured trial log
 
     # ── Configurations ────────────────────────────────────────────
     shadow_jury_count: int
@@ -50,9 +124,7 @@ class TrialState(TypedDict):
     deliberation_snapshot: Dict[str, Any]
     main_verdict: Optional[str]
     shadow_jury_results: Dict[str, Any]
-
-    # ── Evidence ──────────────────────────────────────────────────
-    multimodal_evidence: list
+    sentence: Optional[str]       # Judge's sentence after Guilty/Liable verdict
 
     # ── Error Handling ────────────────────────────────────────────
     errors: List[str]

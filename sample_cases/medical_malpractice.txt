@@ -1,0 +1,23 @@
+# Reynolds v. St. Catherine's Hospital Trust — Medical Negligence
+
+Mrs. Eleanor Reynolds, aged 58, brings a civil action against St. Catherine's Hospital Trust in the United Kingdom for clinical negligence resulting in permanent nerve damage. On June 3rd, Mrs. Reynolds underwent a routine laparoscopic cholecystectomy (gallbladder removal) performed by Consultant Surgeon Mr. David Okonkwo. During the procedure, the common bile duct was inadvertently clipped and transected — a recognised but rare surgical complication occurring in approximately 0.3% of laparoscopic cholecystectomies. The injury was not identified during the surgery. Mrs. Reynolds was discharged the following day despite reporting severe abdominal pain, jaundice, and vomiting to the nursing staff. Her discharge notes recorded these symptoms as "expected post-operative discomfort." Three days later, she collapsed at home and was readmitted as an emergency. A CT scan revealed a bile leak and the duct injury. She required a further seven-hour reconstructive surgery (Roux-en-Y hepaticojejunostomy) and spent 28 days in hospital. She now suffers from chronic bile reflux, recurrent cholangitis requiring lifetime antibiotics, and permanent digestive impairment. She can no longer work as a secondary school teacher.
+
+The Claimant argues that: (1) the surgeon failed to perform an intraoperative cholangiogram (IOC) — an X-ray technique that visualises the bile ducts during surgery — which would have identified the misidentification before clipping; and (2) the hospital failed to act on the post-operative symptoms of jaundice and severe pain, which are recognised red flags for bile duct injury.
+
+The Defendant argues that: (1) IOC is not mandatory under National Institute for Health and Care Excellence (NICE) guidelines for routine cholecystectomy and is only required where anatomy is unclear, which it was not in this case; (2) the complication is a known non-negligent risk that was disclosed in the consent form; and (3) post-operative pain and mild jaundice are common and non-specific in the first 24 hours after abdominal surgery.
+
+Key evidence:
+- Claimant Exhibit A: Mrs. Reynolds' signed consent form listing bile duct injury as a 1 in 300 risk
+- Claimant Exhibit B: Expert report by Professor James Harrington, Consultant Hepatobiliary Surgeon at King's College Hospital, stating that IOC would have prevented the injury in his opinion
+- Claimant Exhibit C: Nursing notes documenting patient complaints of "severe abdominal pain, vomiting, yellowing of skin" on the morning of discharge
+- Claimant Exhibit D: Discharge summary recording symptoms as "expected post-operative discomfort"
+- Defendant Exhibit E: NICE Guideline CG188 (Gallstone Disease) stating IOC is "not routinely indicated"
+- Defendant Exhibit F: Expert report by Miss Catherine Rowe, Consultant Upper GI Surgeon, stating the injury fell within the range of acceptable surgical practice (Bolam test)
+- Claimant Exhibit G: Life care plan and loss of earnings report (£740,000 claimed)
+- Medical records: Pre-operative imaging, operative notes, post-operative nursing records, readmission CT scan, reconstructive surgery notes
+
+Witnesses:
+- Mrs. Eleanor Reynolds: Claimant. Will testify about her pre-injury health, the symptoms she reported, and the impact of her permanent injuries on daily life and career.
+- Mr. David Okonkwo: Consultant Surgeon and defendant. Will testify that the anatomy was clear, IOC was not indicated per NICE guidelines, and the complication occurred despite competent technique.
+- Professor James Harrington: Claimant's expert. Consultant Hepatobiliary Surgeon at King's College Hospital, 25 years of experience, author of 40 peer-reviewed papers on biliary surgery. Will testify that IOC should have been used and that failure to investigate post-operative jaundice fell below the standard of care.
+- Miss Catherine Rowe: Defendant's expert. Consultant Upper GI Surgeon at Royal Free Hospital. Will testify that the surgeon's conduct met the Bolam standard — a responsible body of medical opinion would not have used IOC on a clear-anatomy case.

@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 import requests
 import dashscope
 import base64
@@ -107,9 +108,10 @@ def _transcribe_with_qwen_audio_llm(audio_bytes: bytes, filename: str, model: st
     return (response.choices[0].message.content or "").strip()
 
 
-def generate_speech(text: str, voice: str = "Cherry") -> bytes:
+def generate_speech(text: str, voice: str = "Cherry") -> Optional[bytes]:
     """
     Generates speech from text using Qwen-TTS on Qwen Cloud.
+    Returns None on failure.
     """
     _set_key()
     try:
@@ -118,13 +120,13 @@ def generate_speech(text: str, voice: str = "Cherry") -> bytes:
             model=os.getenv("QWEN_TTS_MODEL", "qwen3-tts-flash"),
             api_key=dashscope.api_key,
             text=text,
-            voice=os.getenv("QWEN_TTS_VOICE", "Cherry")
+            voice=voice
         )
         if res.status_code == 200 and res.output and 'audio' in res.output and 'url' in res.output['audio']:
-            return requests.get(res.output['audio']['url']).content
+            return requests.get(res.output['audio']['url'], timeout=30).content
         else:
             logger.error(f"Qwen TTS Error: {res.message}")
-            return b""
+            return None
     except Exception as e:
         logger.error(f"TTS Error: {e}")
-        return b""
+        return None
