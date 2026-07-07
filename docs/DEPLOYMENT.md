@@ -89,10 +89,15 @@ The `openai` and `langchain-openai` packages are used exclusively as the compati
 
 ---
 
-## Deploying to Alibaba Cloud ECS
+## Live Deployment on Alibaba Cloud ECS
 
-1. Provision an ECS instance with Python 3.10+
-2. Clone the repository and copy `.env.example` to `.env` with your credentials
-3. Run `./deploy.sh --port 8000`
-4. Configure the security group to allow inbound traffic on port 8000
-5. Access the application at `http://<ecs-public-ip>:8000`
+Codex Legalis is currently deployed and running live on an Alibaba Cloud ECS instance.
+
+- **Live URL:** [http://47.237.180.168:8000](http://47.237.180.168:8000)
+- **Deployment Method:** Docker container running on Ubuntu 24.04 (Alibaba ECS)
+- **Instance IP:** `47.237.180.168`
+
+To update the live deployment after pushing new code, we use our automated Docker deployment script on the server:
+```bash
+./deploy-docker.sh
+```

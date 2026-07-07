@@ -12,6 +12,14 @@
 
 ---
 
+## Live Demo
+
+**🟢 Play with the live deployment here:** [http://47.237.180.168:8000](http://47.237.180.168:8000)
+
+*(Hosted on Alibaba Cloud ECS)*
+
+---
+
 ## Demo Video
 
 *Link to be added*
