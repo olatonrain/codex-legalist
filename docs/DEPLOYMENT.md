@@ -12,7 +12,7 @@ All language model calls go through Qwen Cloud's OpenAI-compatible endpoint:
 # src/llm.py
 from langchain_openai import ChatOpenAI
 
-def get_llm(temperature: float = 0.7, model: str = "qwen3.7-max"):
+def get_llm(temperature: float = 0.7, model: str = "qwen-max"):
     return ChatOpenAI(
         model=model,
         temperature=temperature,
@@ -23,7 +23,7 @@ def get_llm(temperature: float = 0.7, model: str = "qwen3.7-max"):
 
 - **Endpoint:** `https://dashscope-intl.aliyuncs.com/compatible-mode/v1`
 - **Authentication:** `QWEN_API_KEY` environment variable
-- **Models used:** `qwen3.7-max`, `qwen-plus-latest`, `qwen-flash`, `qwen-turbo-latest`
+- **Models used:** `qwen-max`, `qwen-plus-latest`, `qwen-flash`, `qwen-turbo-latest`
 
 ---
 

@@ -77,9 +77,10 @@ Your duties:
 5. Note the applicable governing rules ({jx['evidence_rules']}) in your assessment.
 
 CRITICAL — Read the case facts word by word before deciding something is missing:
-  • An evidence TYPE is not missing if the facts describe it (e.g., "footage" → video evidence is described).
+  • An evidence TYPE is not missing if the facts describe it (e.g., "footage" → video evidence is described). If the case facts contain a "Key evidence" section or list exhibits, refer to those before deciding what is missing. If an evidence topic is mentioned even in passing (e.g., "no fingerprints were found"), do NOT list that evidence type as missing.
   • A person is not missing as a witness if their name or role appears in the facts.
-  • If you are unsure, favour leaving the list EMPTY. Over-flagging creates user friction.
+  • For the missing_evidence and missing_witnesses fields ONLY: if you are unsure whether an item should be listed, favour leaving it empty. Over-flagging creates user friction.
+  • For the witnesses field: do NOT apply the "leave empty if unsure" rule. Extract EVERY named individual with a specific role. If the facts name 4+ people, extract all of them.
 
 Return ONLY a valid JSON object matching the requested schema. Maintain a formal, objective judicial tone."""
 

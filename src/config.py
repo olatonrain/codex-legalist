@@ -1,9 +1,9 @@
 # ── Agent Model Configuration ───────────────────────────────────
-# Specify the model for each agent. Options: "qwen3.7-max", "qwen-plus-latest", "qwen-flash", "qwen-turbo-latest"
+# Specify the model for each agent. Options: "qwen-max", "qwen-plus-latest", "qwen-flash", "qwen-turbo-latest"
 
 AGENT_MODELS = {
-    "Magistrate":      "qwen3.7-max",
-    "Judge":           "qwen3.7-max",
+    "Magistrate":      "qwen-max",
+    "Judge":           "qwen-max",
     "Prosecutor":      "qwen-plus-latest",
     "Defense Counsel": "qwen-plus-latest",
     "Witness":         "qwen-flash",

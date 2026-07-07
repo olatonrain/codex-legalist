@@ -353,6 +353,8 @@ function resetTrialWorkspace() {
     if (reviewEl) { reviewEl.style.display = "none"; reviewEl.innerHTML = ""; }
     const beginBtn = $("beginTrialBtn");
     if (beginBtn) beginBtn.style.display = "";
+    const formGrid = document.querySelector(".form-grid");
+    if (formGrid) formGrid.style.display = "";
     const pauseBtn = $("pauseBtn");
     if (pauseBtn) pauseBtn.innerHTML = '<i class="fas fa-pause"></i><span>Pause</span>';
     clearTranscript();
@@ -784,7 +786,7 @@ async function toggleVoiceRecording() {
   const info = $("audioUploadInfo");
   if (!navigator.mediaDevices || !window.MediaRecorder) {
     if (info) {
-      info.textContent = "Recording is not supported in this browser. Use Audio File instead.";
+      info.textContent = "Recording requires HTTPS or localhost. Use 'Attach File' or 'Upload Audio File' instead.";
       info.style.color = "var(--prosecutor)";
     }
     return;
@@ -1081,7 +1083,7 @@ function attachMissingItemsAudioHandlers() {
 async function handleAudioRecording(btn, statusEl, textarea) {
   if (!navigator.mediaDevices || !window.MediaRecorder) {
     if (statusEl) {
-      statusEl.textContent = "Recording not supported";
+      statusEl.textContent = "Recording requires HTTPS or localhost";
       statusEl.style.color = "var(--prosecutor)";
     }
     return;

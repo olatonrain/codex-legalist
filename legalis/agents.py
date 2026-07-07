@@ -140,7 +140,7 @@ def generate_dramatic_opening(
     )
 
     try:
-        llm = get_llm(temperature=0.4, model=AGENT_MODELS.get("Judge", "qwen3.7-max"))
+        llm = get_llm(temperature=0.4, model=AGENT_MODELS.get("Judge", "qwen-max"))
         response = llm.invoke(prompt)
         raw = response.content if hasattr(response, "content") else str(response)
 

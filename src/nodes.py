@@ -118,7 +118,7 @@ def _strip_ruling_preamble(rationale: str, ruling: str) -> str:
 # ── Model Pool for Jurors ─────────────────────────────────────────────────────
 
 _JUROR_MODEL_POOL = [
-    AGENT_MODELS["Magistrate"],       # qwen3.7-max
+    AGENT_MODELS["Magistrate"],       # qwen-max
     AGENT_MODELS["Prosecutor"],       # qwen-plus-latest
     AGENT_MODELS["Witness"],          # qwen-flash
     AGENT_MODELS["Archivist"],        # qwen-turbo-latest
@@ -350,7 +350,7 @@ def _extract_witnesses_fallback(text: str) -> list[str]:
 
     patterns = [
         # Title-prefixed names: Dr. Marcus Chen, Detective Paula Reyes, Officer Daniels, Inspector Dubois
-        r'(?:Dr\.|Detective|Officer|Inspector|Chief|Professor|Lt\.|Sgt\.|Capt\.|Mr\.|Mrs\.|Ms\.)\s+((?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+))',
+        r'(?:Dr\.|Detective|Officer|Inspector|Professor|Lt\.|Sgt\.|Capt\.|Mr\.|Mrs\.|Ms\.)\s+((?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+))',
         # "X testified as Y" or "X will testify"
         r'([A-Z][a-z]+\s+[A-Z][a-z]+)\s+(?:will |(?:is|was)\s+)\w+\s+testif',
         # "call[s] X." or "call[s] X, Y." or "calls Dr. X"
@@ -360,7 +360,7 @@ def _extract_witnesses_fallback(text: str) -> list[str]:
         # "X:" or "X —" introducing testimony or description
         r'([A-Z][a-z]+\s+[A-Z][a-z]+)\s*[:—]',
         # Explicitly listed as separate line with a dash prefix (like "- Dr. X:" or "- X:")
-        r'-\s*(?:Dr\.\s+)?([A-Z][a-z]+\s+[A-Z][a-z]+)',
+        r'-\s*(?:Dr\.|Detective|Officer|Inspector|Professor|Lt\.|Sgt\.|Capt\.|Mr\.|Mrs\.|Ms\.)\s+((?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+))',
     ]
 
     for pattern in patterns:
@@ -403,6 +403,7 @@ def _extract_witnesses_fallback(text: str) -> list[str]:
         "Double Homicide", "Chief Fire", "National Association",
         "Combustion Chemistry", "Arson Investigation",
         "Detective Paula",
+        "Information Security Officer", "Security Officer", "Inspector Grace",
     }
     witnesses = witnesses - false_positives
 

@@ -21,21 +21,21 @@ flowchart TD
 
     subgraph AGENTS["Agent Society — 11 Specialised Qwen Agents"]
         direction LR
-        MAG["Magistrate<br/>qwen3.7-max"]
-        JUD["Judge<br/>qwen3.7-max"]
+        MAG["Magistrate<br/>qwen-max"]
+        JUD["Judge<br/>qwen-max"]
         PROS["Prosecutor<br/>qwen-plus-latest"]
         DEF["Defence Counsel<br/>qwen-plus-latest"]
         WIT["Witnesses<br/>qwen-flash"]
         FC["Fact Checker<br/>qwen-plus-latest"]
         CLK["Clerk<br/>qwen-flash"]
         FP["Foreperson<br/>qwen-plus-latest"]
-        JURY["Jury Panel (6-15)<br/>qwen3.7-max · plus · flash · turbo"]
-        SHADOW["Shadow Juries (5-50)<br/>qwen3.7-max · plus · flash · turbo"]
+        JURY["Jury Panel (6-15)<br/>qwen-max · plus · flash · turbo"]
+        SHADOW["Shadow Juries (5-50)<br/>qwen-max · plus · flash · turbo"]
         ARCH["Archivist<br/>qwen-turbo-latest"]
     end
 
     subgraph QWEN["Qwen Cloud — Alibaba Cloud"]
-        CHAT["Chat Models<br/>qwen3.7-max · qwen-plus · qwen-flash · qwen-turbo"]
+        CHAT["Chat Models<br/>qwen-max · qwen-plus · qwen-flash · qwen-turbo"]
         AUDIO["Audio Models<br/>qwen-omni-turbo · qwen3-omni-flash"]
         TTS["TTS<br/>qwen3-tts-flash"]
     end
@@ -67,8 +67,8 @@ flowchart TD
 
 | Agent           | Role                                                                                                             | Qwen Model                    |
 | --------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| Magistrate      | Analyses the case file, asks strategic pre-trial clarifying questions, identifies missing evidence and witnesses | `qwen3.7-max`                 |
-| Judge           | Rules on objections per the selected jurisdiction's evidence code, instructs the jury on the law                 | `qwen3.7-max`                 |
+| Magistrate      | Analyses the case file, asks strategic pre-trial clarifying questions, identifies missing evidence and witnesses | `qwen-max`                    |
+| Judge           | Rules on objections per the selected jurisdiction's evidence code, instructs the jury on the law                 | `qwen-max`                    |
 | Prosecutor      | Presents evidence, examines witnesses, builds the case against the defendant                                     | `qwen-plus-latest`            |
 | Defence Counsel | Challenges evidence, cross-examines witnesses, defends the accused                                               | `qwen-plus-latest`            |
 | Witnesses       | Role-play agents strictly bounded to their deposition facts                                                      | `qwen-flash`                  |
