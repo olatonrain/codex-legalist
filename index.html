@@ -1171,6 +1171,7 @@
         border: 1px solid var(--border);
         border-radius: 10px;
         padding: 16px;
+        min-width: 0;
       }
       .chart-card h4 {
         font-size: 13px;
@@ -1187,6 +1188,7 @@
         border: 1px solid var(--border);
         border-radius: 10px;
         padding: 16px;
+        min-width: 0;
       }
       .precedent-item {
         padding: 10px;
@@ -1427,6 +1429,15 @@
         white-space: nowrap;
       }
 
+      /* Plotly chart containers */
+      .js-plotly-plot .plot-container,
+      .js-plotly-plot .svg-container {
+        max-width: 100% !important;
+      }
+      .js-plotly-plot .main-svg {
+        max-width: 100% !important;
+      }
+
       /* Mobile FABs */
       .mobile-fab {
         display: none;
@@ -1528,7 +1539,7 @@
           grid-template-columns: repeat(3, 1fr);
         }
         .analytics-grid {
-          grid-template-columns: 1fr;
+          grid-template-columns: minmax(0, 1fr);
         }
         .nav-info.hide-tablet {
           display: none;
@@ -1663,7 +1674,7 @@
           gap: 8px;
         }
         .analytics-grid {
-          grid-template-columns: 1fr;
+          grid-template-columns: minmax(0, 1fr);
           gap: 12px;
         }
         .verdict-card {
@@ -1671,6 +1682,50 @@
         }
         .verdict-card .verdict-text {
           font-size: 36px;
+        }
+        #gaugeNumber {
+          font-size: 2.2rem !important;
+        }
+        #gaugeSub {
+          font-size: 0.6rem !important;
+        }
+        #gaugeChart,
+        #heatmapChart {
+          height: 160px !important;
+        }
+        #voteChart {
+          height: 150px !important;
+        }
+        #sentenceText {
+          font-size: 1rem !important;
+        }
+        #sentenceTerm {
+          font-size: 0.85rem !important;
+        }
+        #sentenceRationale {
+          font-size: 0.75rem !important;
+        }
+        #forepersonRationale {
+          font-size: 0.78rem !important;
+        }
+        .chart-card {
+          padding: 12px;
+        }
+        .chart-card h4 {
+          font-size: 12px;
+        }
+        .precedent-card {
+          padding: 12px;
+        }
+        .precedent-item {
+          font-size: 11px;
+          padding: 8px;
+        }
+        .gauge-inner {
+          padding: 10px 0 !important;
+        }
+        #shadowJuryNarrative {
+          max-height: 250px !important;
         }
         .bottom-bar {
           padding: 0 12px;
@@ -2808,7 +2863,7 @@
               <h4>
                 <i class="fas fa-tachometer-alt"></i> Burden Met Probability
               </h4>
-              <div style="text-align: center; padding: 20px 0">
+              <div style="text-align: center; padding: 20px 0" class="gauge-inner">
                 <div
                   style="
                     font-size: 3rem;
@@ -2832,17 +2887,17 @@
                   Run a trial to see results
                 </div>
               </div>
-              <div id="gaugeChart" style="height: 220px"></div>
+              <div id="gaugeChart" style="height: 220px; max-width: 100%"></div>
             </div>
             <div class="chart-card">
               <h4><i class="fas fa-th"></i> Sensitivity Heatmap</h4>
-              <div id="heatmapChart" style="height: 220px"></div>
+              <div id="heatmapChart" style="height: 220px; max-width: 100%"></div>
             </div>
           </div>
           <div class="analytics-grid">
             <div class="chart-card">
               <h4><i class="fas fa-chart-bar"></i> Vote Distribution</h4>
-              <div id="voteChart" style="height: 200px"></div>
+              <div id="voteChart" style="height: 200px; max-width: 100%"></div>
             </div>
             <div class="precedent-card">
               <h4>
