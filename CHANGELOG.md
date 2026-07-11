@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented here.
 
+## 2026-07-11 (session 5)
+
+### Added
+- **Benchmark streaming progress** — `GET /api/benchmark/run-stream` SSE endpoint yields real-time events per approach/run; frontend displays inline progress with actual response snippets
+- **Single-Agent sample card** — benchmark results now show Single-Agent verdict, reasoning, and metrics alongside Raw LLM and Codex legalist
+- **`trial_context` support** — benchmark functions accept optional trial record; raw LLM and single-agent get enriched prompts; multi-agent skips re-running and extracts metrics from existing trial
+- **`hasCompletedTrial()`** helper — gates "Run Live" button behind existing trial with transcript + verdict
+
+### Changed
+- **Counsel Insights moved** — verdict view reordered to position 2 (right after Jury Vote Breakdown, before Shadow Jury Room)
+- **Benchmark CLI hint removed** — `python benchmark.py --mock` code block deleted from UI
+- `BenchmarkRequest` model updated with optional `trial_context` field
+
 ## 2026-07-11 (session 4)
 
 ### Fixed

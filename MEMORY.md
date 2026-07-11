@@ -1,32 +1,27 @@
 # MEMORY — Codex legalist
 
 ## Last Session
-2026-07-11 (session 3) — Phase 4 module split completed successfully using `acorn` AST-based extraction. `static/app.js` split into 6 files (state.js, transcript.js, evidence.js, jury.js, ui.js, app.js entry point). `<script type="module">` in index.html.
+2026-07-11 (session 5) — Benchmark improvements + Counsel Insights placement + SSE streaming. Full session completed with all 118 tests passing.
 
 ## Done
-- **Phase 4 — Module Split (AST-based):**
-  - Wrote `_acorn_split.mjs` using `acorn` parser: walks AST to classify each top-level statement → state.js, transcript.js, evidence.js, jury.js, or ui.js
-  - Page-range extraction: each statement "owns" lines from its start to the next statement, preserving trailing comments in the correct module
-  - Generated 5 clean module files (all pass `node --check`):
-    - `state.js` (254 lines): State object, globals, helpers, constants, theme IIFE
-    - `transcript.js` (174 lines): transcript management functions
-    - `evidence.js` (150 lines): evidence display functions
-    - `jury.js` (539 lines): jury grid, verdict charts, deliberation, insight functions
-    - `ui.js` (2315 lines): all remaining UI functions
-  - Rewrote `app.js` (59 lines) as ES module entry point: imports from all modules, exposes globals (`window.State`, `window.showToast`, etc.), registers `DOMContentLoaded` bootstrap
-  - `index.html` updated to `<script type="module" src="/static/app.js">`
-  - All named imports resolve correctly; zero missing export errors
-- **Counsel Insights** (from session 2): 4 insight functions migrated to jury.js, wired via entry point bootstrap
-- All 118 tests pass; zero ruff lint errors; all frontend JS valid
+- **Counsel Insights moved to position 2** — verdict view HTML reordered: verdict card → jury breakdown → Counsel Insights → shadow jury → sentencing → charts
+- **"Run Live" gated** — `hasCompletedTrial()` in ui.js checks `State.graphState` for transcript + verdict; Live button blocked with toast if no trial exists
+- **Single-Agent sample card** — added to benchmark results HTML and `renderBenchmarkView()` JS (was missing, only Raw LLM and Codex legalist were shown)
+- **Benchmark uses trial record** — `legalist/benchmark.py`:
+  - `extract_benchmark_context()` formats existing trial record for prompt injection
+  - `run_raw_llm_query()` and `run_single_agent_trial()` accept optional `trial_context`; prompts enriched with full trial record when provided
+  - `run_multi_agent_trial()` skips graph invoke when `trial_context` is provided; extracts metrics directly (verdict, transcript length, hallucinations, evidence citations, shadow jury consensus)
+  - CLI `run_benchmark()` passes `trial_context` through
+- **SSE streaming endpoint** — `GET /api/benchmark/run-stream` in server.py yields events (`raw_llm_start`, `raw_llm_done`, `single_start`, `single_done`, `multi_result`, `complete`) for real-time progress
+- **Frontend SSE consumer** — `runBenchmark()` uses `EventSource` to connect to streaming endpoint; progress panel shows each step inline with actual response snippets; closes on `complete` and renders final benchmark view
+- **CLI hint removed** — `python benchmark.py --mock` code block deleted from benchmark UI
 
 ## Decisions
-- Use `acorn` for AST-based extraction instead of regex brace-matching — reliable handling of template literals, nested braces, comments
-- **Page-range attribution**: each top-level statement owns lines from its first line to the line before the next statement (regardless of module), so trailing comments follow the preceding function
-- All module files kept in `static/` next to `app.js` entry point — no subdirectory
-- No barrel re-exports — each module directly imports from its dependents
+- SSE streaming over polling — simpler implementation, real-time updates, no extra state management
+- Multi-agent skips graph for existing trials — seconds instead of 5-10 min per benchmark run; existing trial is the "baseline" for comparison
+- `trial_context` passed as JSON-encoded query param for SSE (EventSource only supports GET)
 
 ## Next Steps
-- Phase 8 (optional): Playwright E2E test for main trial + insight flow
 - Commit and push to GitHub
 
 ## Blockers & Open Questions

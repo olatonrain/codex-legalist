@@ -1207,9 +1207,20 @@ function initDemoButtons() {
 
 // ── Benchmark ─────────────────────────────────────────────────────────────────
 
+function hasCompletedTrial() {
+  const gs = State.graphState;
+  return gs && Array.isArray(gs.transcript) && gs.transcript.length > 0 && !!gs.main_verdict;
+}
+
 function initBenchmarkButtons() {
   $("runBenchmarkBtn")?.addEventListener("click", () => runBenchmark(true));
-  $("runBenchmarkLiveBtn")?.addEventListener("click", () => runBenchmark(false));
+  $("runBenchmarkLiveBtn")?.addEventListener("click", () => {
+    if (!hasCompletedTrial()) {
+      showToast("Run a full trial first before using Live benchmark mode.", "warning", 4000);
+      return;
+    }
+    runBenchmark(false);
+  });
 }
 
 async function runBenchmark(useMock) {
@@ -1225,55 +1236,119 @@ async function runBenchmark(useMock) {
   const btnLive = $("runBenchmarkLiveBtn");
   
   const modeLabel = useMock ? "Mock (no API calls)" : "Live (Qwen API calls)";
-  const timeoutMs = useMock ? 30000 : 600000;
   
   if (statusEl) {
-    const timeEstimate = useMock ? "~10 seconds" : "5-10 minutes";
-    statusEl.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Running benchmark in <strong>${modeLabel}</strong> mode... (Estimated: ${timeEstimate})`;
+    statusEl.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Running benchmark in <strong>${modeLabel}</strong> mode...`;
   }
   if (btnMock) { btnMock.disabled = true; btnMock.style.opacity = "0.5"; }
   if (btnLive) { btnLive.disabled = true; btnLive.style.opacity = "0.5"; }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const progressEl = $("benchmarkProgress");
+  const stepsEl = $("benchProgressSteps");
+  const progressTitle = $("benchProgressTitle");
+  const progressIcon = $("benchProgressIcon");
+  if (progressEl) progressEl.style.display = "";
+  if (progressTitle) progressTitle.textContent = `Running benchmark (${modeLabel})...`;
+  if (stepsEl) stepsEl.innerHTML = "";
 
-  try {
-    const res = await fetch("/api/benchmark/run", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        case_description: caseText,
-        num_runs: useMock ? 3 : 1,
-        use_mock: useMock,
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    
-    const data = await safeJson(res);
-    if (!res.ok) throw new Error(data.detail || "Benchmark failed");
-    
-    State.benchmarkData = data;
-    renderBenchmarkView();
-    
-    if (data.errors && data.errors.length > 0) {
-      if (statusEl) statusEl.innerHTML = `<i class="fas fa-exclamation-triangle" style="color:var(--prosecutor)"></i> Benchmark completed with errors: ${data.errors[0].slice(0, 100)}...`;
+  const params = new URLSearchParams({
+    case_description: caseText,
+    num_runs: String(useMock ? 3 : 1),
+    use_mock: String(useMock),
+  });
+  if (hasCompletedTrial()) {
+    params.set("trial_context", JSON.stringify(State.graphState));
+  }
+
+  const url = `/api/benchmark/run-stream?${params}`;
+  const evtSource = new EventSource(url);
+
+  const timeoutMs = useMock ? 30000 : 600000;
+  let settled = false;
+  const timeoutId = setTimeout(() => {
+    if (!settled) {
+      evtSource.close();
+      if (progressEl) progressEl.style.display = "none";
+      if (statusEl) statusEl.innerHTML = `<i class="fas fa-times-circle" style="color:var(--prosecutor)"></i> Benchmark timed out.`;
+      State.benchmarkRunning = false;
+      if (btnMock) { btnMock.disabled = false; btnMock.style.opacity = ""; }
+      if (btnLive) { btnLive.disabled = false; btnLive.style.opacity = ""; }
+    }
+  }, timeoutMs);
+
+  function appendStep(html) {
+    if (stepsEl) stepsEl.innerHTML += html;
+  }
+
+  evtSource.addEventListener("raw_llm_start", (e) => {
+    const d = JSON.parse(e.data);
+    appendStep(`<div style="color:var(--muted);margin-top:6px;">⚡ Raw LLM query ${d.run}/${d.total}...</div>`);
+  });
+
+  evtSource.addEventListener("raw_llm_done", (e) => {
+    const d = JSON.parse(e.data);
+    if (d.error) {
+      appendStep(`<div style="color:var(--prosecutor);">❌ Raw LLM: ${d.error}</div>`);
     } else {
-      if (statusEl) statusEl.innerHTML = `<i class="fas fa-check" style="color:var(--defense)"></i> Benchmark complete (${modeLabel}). Results shown below.`;
+      const snippet = escapeHtml((d.response || "").slice(0, 120));
+      appendStep(`<div style="color:var(--defense);">✅ Raw LLM: "${snippet}${d.response?.length > 120 ? "..." : ""}"</div>`);
     }
-  } catch (e) {
+  });
+
+  evtSource.addEventListener("single_start", (e) => {
+    appendStep(`<div style="color:var(--muted);margin-top:6px;">⚡ Single-Agent trial...</div>`);
+  });
+
+  evtSource.addEventListener("single_done", (e) => {
+    const d = JSON.parse(e.data);
+    if (d.error) {
+      appendStep(`<div style="color:var(--prosecutor);">❌ Single-Agent: ${d.error}</div>`);
+    } else {
+      appendStep(`<div style="color:var(--defense);">✅ Single-Agent: ${escapeHtml(d.verdict || "?")} (${d.time?.toFixed(1) || "?"}s)</div>`);
+    }
+  });
+
+  evtSource.addEventListener("multi_result", (e) => {
+    const d = JSON.parse(e.data);
+    if (d.error) {
+      appendStep(`<div style="color:var(--prosecutor);">❌ Codex legalist: ${d.error}</div>`);
+    } else {
+      const src = d.source === "existing_trial" ? " (from existing trial)" : "";
+      appendStep(`<div style="color:var(--gold);font-weight:600;">✅ Codex legalist: ${escapeHtml(d.verdict || "?")}${src}</div>`);
+    }
+  });
+
+  evtSource.addEventListener("complete", (e) => {
+    settled = true;
     clearTimeout(timeoutId);
-    let errorMsg = e.message;
-    if (e.name === "AbortError") {
-      errorMsg = "Benchmark timed out. Live mode requires valid API access and can take several minutes.";
+    evtSource.close();
+    const data = JSON.parse(e.data);
+    State.benchmarkData = data;
+    if (progressEl) progressEl.style.display = "none";
+    renderBenchmarkView();
+    if (statusEl) {
+      if (data.errors && data.errors.length > 0) {
+        statusEl.innerHTML = `<i class="fas fa-exclamation-triangle" style="color:var(--prosecutor)"></i> Benchmark completed with errors: ${data.errors[0].slice(0, 100)}...`;
+      } else {
+        statusEl.innerHTML = `<i class="fas fa-check" style="color:var(--defense)"></i> Benchmark complete (${modeLabel}). Results shown below.`;
+      }
     }
-    if (statusEl) statusEl.innerHTML = `<i class="fas fa-times-circle" style="color:var(--prosecutor)"></i> Benchmark error: ${errorMsg}`;
-    console.error("Benchmark error:", e);
-  } finally {
     State.benchmarkRunning = false;
     if (btnMock) { btnMock.disabled = false; btnMock.style.opacity = ""; }
     if (btnLive) { btnLive.disabled = false; btnLive.style.opacity = ""; }
-  }
+  });
+
+  evtSource.onerror = () => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timeoutId);
+    evtSource.close();
+    if (progressEl) progressEl.style.display = "none";
+    if (statusEl) statusEl.innerHTML = `<i class="fas fa-times-circle" style="color:var(--prosecutor)"></i> Benchmark connection lost.`;
+    State.benchmarkRunning = false;
+    if (btnMock) { btnMock.disabled = false; btnMock.style.opacity = ""; }
+    if (btnLive) { btnLive.disabled = false; btnLive.style.opacity = ""; }
+  };
 }
 
 async function loadDemo(key) {
@@ -1810,6 +1885,15 @@ function renderBenchmarkView() {
     if (rawMeta) rawMeta.innerHTML = `<span>${rawHalluc} hallucinations</span><span>${rawCitations} citations</span>`;
   }
   
+  const singleSample = $("benchSingleSample");
+  const singleMeta = $("benchSingleMeta");
+  if (singleSample && singleResults[0]) {
+    const resp = singleResults[0].reasoning || singleResults[0].response || "";
+    const v = singleResults[0].verdict || "";
+    singleSample.innerHTML = `<strong>Verdict:</strong> ${escapeHtml(v)}<br><br>${escapeHtml(resp.slice(0, 300))}${resp.length > 300 ? "..." : ""}`;
+    if (singleMeta) singleMeta.innerHTML = `<span>${singleResults[0].time?.toFixed(1) || "?"}s</span><span>${singleHalluc} hallucinations</span><span>${singleCitations} citations</span>`;
+  }
+
   const multiSample = $("benchMultiSample");
   const multiMeta = $("benchMultiMeta");
   if (multiSample && multiResults[0]) {

@@ -32,6 +32,55 @@ from src.logger import get_logger
 logger = get_logger(__name__)
 
 
+def extract_benchmark_context(state: dict) -> str:
+    """Format an existing trial record as a prompt-injectable context block."""
+    case_desc = (state.get("case_description") or "")[:2000]
+    verdict = state.get("main_verdict") or "No Verdict Reached"
+
+    admitted = state.get("admitted_evidence") or []
+    evidence_lines = []
+    for ev in admitted[-10:]:
+        if isinstance(ev, dict):
+            evidence_lines.append(f"  - {ev.get('id','?')}: {str(ev.get('description',''))[:200]}")
+        else:
+            evidence_lines.append(f"  - {str(ev)[:200]}")
+
+    transcript = state.get("transcript") or []
+    transcript_lines = []
+    for msg in transcript[-20:]:
+        if isinstance(msg, dict):
+            name = msg.get("name") or msg.get("agent") or "Speaker"
+            text = (msg.get("content") or msg.get("text") or "")[:150]
+        else:
+            name = "Speaker"
+            text = str(msg)[:150]
+        transcript_lines.append(f"  [{name}]: {text}")
+
+    closing_args = ""
+    trial_log = state.get("trial_log") or {}
+    if isinstance(trial_log, dict):
+        ca = trial_log.get("closing_arguments", "")
+        if isinstance(ca, list):
+            ca = "\n".join(ca)
+        closing_args = str(ca)[:1000]
+
+    parts = [
+        "=== EXISTING TRIAL RECORD ===",
+        f"Case Description: {case_desc}",
+        f"Verdict: {verdict}",
+    ]
+    if evidence_lines:
+        parts.append("\nAdmitted Evidence:")
+        parts.extend(evidence_lines)
+    if transcript_lines:
+        parts.append(f"\nTrial Transcript (last {len(transcript_lines)} messages):")
+        parts.extend(transcript_lines)
+    if closing_args:
+        parts.append(f"\nClosing Arguments:\n{closing_args}")
+    parts.append("=== END TRIAL RECORD ===")
+    return "\n".join(parts)
+
+
 def extract_facts(text: str) -> set:
     """Extract key facts from text using improved extraction."""
     # Convert to lowercase and split into sentences
@@ -231,7 +280,7 @@ def count_evidence_citations(response: str) -> int:
     return count
 
 
-def run_raw_llm_query(case_description: str, use_mock: bool = False) -> Dict:
+def run_raw_llm_query(case_description: str, use_mock: bool = False, trial_context: dict = None) -> Dict:
     """Query a single LLM directly without any courtroom structure."""
     if use_mock:
         return {
@@ -251,10 +300,14 @@ def run_raw_llm_query(case_description: str, use_mock: bool = False) -> Dict:
         logger.error("Failed to init LLM in run_raw_llm_query: %s", exc, exc_info=True)
         return {"response": f"Error: {exc}", "hallucinations": 0, "evidence_citations": 0, "time": 0}
 
+    extra = ""
+    if trial_context:
+        extra = f"\n\n{extract_benchmark_context(trial_context)}\n\n"
+
     prompt = f"""Case facts:
 
 {case_description}
-
+{extra}
 What's the verdict? Provide only the verdict and brief reasoning based strictly on the facts provided."""
 
     start = time.time()
@@ -275,7 +328,7 @@ What's the verdict? Provide only the verdict and brief reasoning based strictly 
     }
 
 
-def run_single_agent_trial(case_description: str, use_mock: bool = False) -> Dict:
+def run_single_agent_trial(case_description: str, use_mock: bool = False, trial_context: dict = None) -> Dict:
     """Run a trial with a single agent handling all roles."""
     if use_mock:
         verdict = random.choice(["Guilty", "Guilty", "Not Guilty"])
@@ -306,10 +359,14 @@ def run_single_agent_trial(case_description: str, use_mock: bool = False) -> Dic
             "time": 0,
         }
 
+    extra = ""
+    if trial_context:
+        extra = f"\n\n{extract_benchmark_context(trial_context)}\n\n"
+
     prompt = f"""You are a judge in a criminal trial. The case facts are:
 
 {case_description}
-
+{extra}
 Based STRICTLY on these facts alone, provide:
 1. A verdict (Guilty or Not Guilty)
 2. Your reasoning (2-3 sentences citing only facts from the case)
@@ -353,8 +410,29 @@ Reasoning: [Your reasoning]
     }
 
 
-def run_multi_agent_trial(case_description: str, use_mock: bool = False) -> Dict:
-    """Run a trial with the full 9-agent society."""
+def run_multi_agent_trial(case_description: str, use_mock: bool = False, trial_context: dict = None) -> Dict:
+    """Run a trial with the full 9-agent society.
+
+    If trial_context is provided (an existing trial result), skip the graph
+    invoke and extract metrics directly from the saved trial record.
+    """
+    if trial_context and not use_mock:
+        transcript = trial_context.get("transcript") or []
+        transcript_text = " ".join(
+            [msg.get("content", "") if isinstance(msg, dict) else str(msg) for msg in transcript]
+        )
+        shadow_results = trial_context.get("shadow_jury_results") or {}
+        return {
+            "verdict": trial_context.get("main_verdict", "Unknown"),
+            "reasoning": transcript_text[:1000],
+            "transcript_length": len(transcript),
+            "hallucinations": count_hallucinations(transcript_text, case_description),
+            "evidence_citations": count_evidence_citations(transcript_text),
+            "shadow_jury_consensus": shadow_results.get("win_probability", 0),
+            "time": 0,
+            "source": "existing_trial",
+        }
+
     if use_mock:
         return {
             "verdict": "Guilty",
@@ -433,7 +511,7 @@ def run_multi_agent_trial(case_description: str, use_mock: bool = False) -> Dict
     }
 
 
-def run_benchmark(case_description: str, num_runs: int = 3, use_mock: bool = False):
+def run_benchmark(case_description: str, num_runs: int = 3, use_mock: bool = False, trial_context: dict = None):
     """Run the benchmark comparing raw LLM vs single-agent vs multi-agent."""
     print(f"\n{'=' * 70}")
     print("BENCHMARK: Raw LLM vs Single-Agent vs Multi-Agent")
@@ -449,21 +527,21 @@ def run_benchmark(case_description: str, num_runs: int = 3, use_mock: bool = Fal
     print("Running raw LLM queries...")
     for i in range(num_runs):
         print(f"  Run {i + 1}/{num_runs}...", end=" ")
-        result = run_raw_llm_query(case_description, use_mock)
+        result = run_raw_llm_query(case_description, use_mock, trial_context)
         raw_results.append(result)
         print(f"Done ({result['time']:.2f}s)")
 
     print("\nRunning single-agent trials...")
     for i in range(num_runs):
         print(f"  Run {i + 1}/{num_runs}...", end=" ")
-        result = run_single_agent_trial(case_description, use_mock)
+        result = run_single_agent_trial(case_description, use_mock, trial_context)
         single_results.append(result)
         print(f"Verdict: {result['verdict']} ({result['time']:.2f}s)")
 
     print("\nRunning multi-agent trials...")
     for i in range(num_runs):
         print(f"  Run {i + 1}/{num_runs}...", end=" ")
-        result = run_multi_agent_trial(case_description, use_mock)
+        result = run_multi_agent_trial(case_description, use_mock, trial_context)
         multi_results.append(result)
         print(f"Verdict: {result['verdict']} ({result['time']:.2f}s)")
 

@@ -46,7 +46,7 @@ except ImportError:
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -943,6 +943,7 @@ async def export_transcript(request: Request):
 
 class BenchmarkRequest(BaseModel):
     case_description: str
+    trial_context: dict = None
     num_runs: int = 3
     use_mock: bool = False
 
@@ -957,11 +958,13 @@ def run_benchmark(req: BenchmarkRequest):
         multi_results = []
         errors = []
 
+        ctx = req.trial_context
+
         for i in range(req.num_runs):
             try:
-                raw_results.append(run_raw_llm_query(req.case_description, req.use_mock))
-                single_results.append(run_single_agent_trial(req.case_description, req.use_mock))
-                multi_result = run_multi_agent_trial(req.case_description, req.use_mock)
+                raw_results.append(run_raw_llm_query(req.case_description, req.use_mock, ctx))
+                single_results.append(run_single_agent_trial(req.case_description, req.use_mock, ctx))
+                multi_result = run_multi_agent_trial(req.case_description, req.use_mock, ctx)
 
                 if multi_result.get("error"):
                     errors.append(f"Run {i + 1}: {multi_result.get('reasoning', 'Unknown error')}")
@@ -1005,6 +1008,96 @@ def run_benchmark(req: BenchmarkRequest):
         raise
     except Exception as exc:
         raise HTTPException(500, f"Benchmark failed: {exc}")
+
+
+@app.get("/api/benchmark/run-stream")
+def run_benchmark_stream(
+    case_description: str = "",
+    num_runs: int = 3,
+    use_mock: bool = False,
+    trial_context: str = None,
+):
+    """SSE streaming endpoint for benchmark progress.
+
+    Yields events as each run of each approach completes so the frontend can
+    display real-time progress.
+    """
+    import json as _json_mod
+
+    from legalist.benchmark import (
+        run_multi_agent_trial as _run_multi,
+        run_raw_llm_query as _run_raw,
+        run_single_agent_trial as _run_single,
+    )
+
+    ctx = _json_mod.loads(trial_context) if trial_context else None
+
+    def event_stream():
+        raw_results = []
+        single_results = []
+        multi_results = []
+        errors = []
+
+        for i in range(num_runs):
+            # ── Raw LLM ──
+            yield f"event: raw_llm_start\ndata: {_json_mod.dumps({'run': i + 1, 'total': num_runs})}\n\n"
+            try:
+                raw = _run_raw(case_description, use_mock, ctx)
+                raw_results.append(raw)
+                yield f"event: raw_llm_done\ndata: {_json_mod.dumps(raw)}\n\n"
+            except Exception as exc:
+                err = {"run": i + 1, "error": str(exc)[:200]}
+                yield f"event: raw_llm_done\ndata: {_json_mod.dumps(err)}\n\n"
+
+            # ── Single-Agent ──
+            yield f"event: single_start\ndata: {_json_mod.dumps({'run': i + 1})}\n\n"
+            try:
+                single = _run_single(case_description, use_mock, ctx)
+                single_results.append(single)
+                yield f"event: single_done\ndata: {_json_mod.dumps(single)}\n\n"
+            except Exception as exc:
+                err = {"run": i + 1, "error": str(exc)[:200]}
+                yield f"event: single_done\ndata: {_json_mod.dumps(err)}\n\n"
+
+            # ── Multi-Agent ──
+            try:
+                multi = _run_multi(case_description, use_mock, ctx)
+                multi_results.append(multi)
+                yield f"event: multi_result\ndata: {_json_mod.dumps(multi)}\n\n"
+            except Exception as exc:
+                err = {"run": i + 1, "error": str(exc)[:200]}
+                yield f"event: multi_result\ndata: {_json_mod.dumps(err)}\n\n"
+
+        # Build final aggregate (same shape as POST /api/benchmark/run)
+        def safe_avg(results, key, default=0):
+            if not results:
+                return default
+            return sum(r.get(key, default) for r in results) / len(results)
+
+        aggregate = {
+            "raw_llm": {
+                "results": raw_results,
+                "avg_hallucinations": safe_avg(raw_results, "hallucinations"),
+                "avg_evidence_citations": safe_avg(raw_results, "evidence_citations"),
+            },
+            "single_agent": {
+                "results": single_results,
+                "avg_hallucinations": safe_avg(single_results, "hallucinations"),
+                "avg_evidence_citations": safe_avg(single_results, "evidence_citations"),
+            },
+            "multi_agent": {
+                "results": multi_results,
+                "avg_hallucinations": safe_avg(multi_results, "hallucinations"),
+                "avg_evidence_citations": safe_avg(multi_results, "evidence_citations"),
+                "avg_shadow_jury_consensus": safe_avg(multi_results, "shadow_jury_consensus"),
+            },
+            "completed_runs": len(multi_results),
+            "total_runs": num_runs,
+            "errors": errors if errors else None,
+        }
+        yield f"event: complete\ndata: {_json_mod.dumps(aggregate)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 # ── Counsel Insights ───────────────────────────────────────────────────────────
