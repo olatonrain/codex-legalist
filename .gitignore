@@ -44,3 +44,8 @@ package-lock.json
 # ── AI Assistant Config ──────────────────────────────────────────
 AGENTS.md
 project-rules.md
+
+# ── Project docs not for public git ─────────────────────────────
+CHANGELOG.md
+MEMORY.md
+CONTRIBUTING.md
