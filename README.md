@@ -28,7 +28,7 @@ _(Hosted on Alibaba Cloud ECS)_
 
 ## Blog Post
 
-_Link to be added_
+[Codex legalist - Qwen Hackathon Project](https://www.linkedin.com/posts/xa4real_qwencloud-alibabacloud-hackathon-ugcPost-7480464001672396800-F13t/?utm_source=share&utm_medium=member_ios&rcm=ACoAABJy-eYBMgamdm81HKCISLctT4zLcALuoSo)
 
 ---
 
@@ -50,13 +50,18 @@ Open [http://localhost:8000](http://localhost:8000).
 
 ## Documentation
 
-| Document                             | Description                                                |
-| ------------------------------------ | ---------------------------------------------------------- |
-| [Architecture](docs/ARCHITECTURE.md) | System diagram, tech stack, agent roles, trial phases      |
-| [Deployment](docs/DEPLOYMENT.md)     | Alibaba Cloud proof, Qwen Cloud config, compliance         |
-| [Benchmark](docs/BENCHMARK.md)       | Raw LLM vs Single-Agent vs Codex legalist comparison       |
-| [Usage](docs/USAGE.md)               | How to run trials, demo cases, file upload, API reference  |
-| [Safety](docs/SAFETY.md)             | Anti-hallucination, prompt injection defence, record gates |
+| Document                     | Description                                                |
+| ---------------------------- | ---------------------------------------------------------- |
+| [Architecture](ARCHITECTURE.md) | System diagram, tech stack, agent roles, trial phases      |
+| [Deployment](DEPLOY_GUIDE.md)   | Deployment process, environment config, CI/CD              |
+| [Agents](AGENTS.md)          | AI agent rules, session protocol, documentation sync       |
+| [Memory](MEMORY.md)          | Project memory tracking (decisions, blockers, next steps)  |
+| [Changelog](CHANGELOG.md)    | Version history with date-based entries                    |
+| [Contributing](CONTRIBUTING.md) | Code conventions, PR workflow, testing                    |
+| [Benchmark](docs/BENCHMARK.md) | Raw LLM vs Single-Agent vs Codex legalist comparison       |
+| [Usage](docs/USAGE.md)       | How to run trials, demo cases, file upload, API reference  |
+| [Safety](SAFETY.md)          | Data handling limits, deployment guardrails, human-in-the-loop checkpoints |
+| [Security](SECURITY.md)      | Vulnerability reporting, secrets handling, auth policy |
 
 ---
 

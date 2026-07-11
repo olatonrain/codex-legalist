@@ -19,13 +19,13 @@ Metrics:
     - Shadow jury consensus score (multi-agent only)
     - Response time
 """
+
 import argparse
 import json
 import random
 import re
 import time
-from typing import Dict, List
-from langchain_core.messages import AIMessage
+from typing import Dict
 
 from src.logger import get_logger
 
@@ -36,30 +36,148 @@ def extract_facts(text: str) -> set:
     """Extract key facts from text using improved extraction."""
     # Convert to lowercase and split into sentences
     text = text.lower()
-    
+
     # Remove common legal/procedural phrases that shouldn't count as facts
     procedural_phrases = [
-        'the court', 'your honor', 'my lord', 'objection', 'sustained', 'overruled',
-        'ladies and gentlemen', 'jury', 'witness', 'testimony', 'evidence', 'exhibit',
-        'prosecution', 'defense', 'counsel', 'your worship', 'may it please',
-        'respectfully submit', 'would submit', 'the people', 'the state',
-        'beyond reasonable doubt', 'balance of probabilities', 'preponderance',
-        'guilty', 'not guilty', 'liable', 'not liable', 'verdict',
-        'i do not recall', 'i don\'t know', 'outside my knowledge'
+        "the court",
+        "your honor",
+        "my lord",
+        "objection",
+        "sustained",
+        "overruled",
+        "ladies and gentlemen",
+        "jury",
+        "witness",
+        "testimony",
+        "evidence",
+        "exhibit",
+        "prosecution",
+        "defense",
+        "counsel",
+        "your worship",
+        "may it please",
+        "respectfully submit",
+        "would submit",
+        "the people",
+        "the state",
+        "beyond reasonable doubt",
+        "balance of probabilities",
+        "preponderance",
+        "guilty",
+        "not guilty",
+        "liable",
+        "not liable",
+        "verdict",
+        "i do not recall",
+        "i don't know",
+        "outside my knowledge",
     ]
-    
+
     # Extract words (3+ letters)
-    words = set(re.findall(r'\b[a-z]{3,}\b', text))
-    
+    words = set(re.findall(r"\b[a-z]{3,}\b", text))
+
     # Remove stopwords
     stopwords = {
-        'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'has', 'have', 'been', 'some', 'them', 'than', 'its', 'over', 'also', 'would', 'this', 'that', 'with', 'from', 'they', 'know', 'want', 'been', 'good', 'much', 'those', 'each', 'make', 'like', 'just', 'over', 'such', 'take', 'year', 'most', 'only', 'new', 'will', 'time', 'very', 'when', 'come', 'could', 'into', 'state', 'your', 'what', 'there', 'use', 'way', 'about', 'many', 'then', 'them', 'would', 'these', 'other', 'which', 'their', 'may', 'any', 'who', 'did', 'does', 'had', 'his', 'him', 'she', 'let', 'say', 'said', 'ask', 'tell', 'give', 'take', 'see', 'look', 'find', 'think', 'believe', 'consider', 'must', 'should', 'shall'
+        "the",
+        "and",
+        "for",
+        "are",
+        "but",
+        "not",
+        "you",
+        "all",
+        "can",
+        "had",
+        "her",
+        "was",
+        "one",
+        "our",
+        "out",
+        "has",
+        "have",
+        "been",
+        "some",
+        "them",
+        "than",
+        "its",
+        "over",
+        "also",
+        "would",
+        "this",
+        "that",
+        "with",
+        "from",
+        "they",
+        "know",
+        "want",
+        "been",
+        "good",
+        "much",
+        "those",
+        "each",
+        "make",
+        "like",
+        "just",
+        "over",
+        "such",
+        "take",
+        "year",
+        "most",
+        "only",
+        "new",
+        "will",
+        "time",
+        "very",
+        "when",
+        "come",
+        "could",
+        "into",
+        "state",
+        "your",
+        "what",
+        "there",
+        "use",
+        "way",
+        "about",
+        "many",
+        "then",
+        "them",
+        "would",
+        "these",
+        "other",
+        "which",
+        "their",
+        "may",
+        "any",
+        "who",
+        "did",
+        "does",
+        "had",
+        "his",
+        "him",
+        "she",
+        "let",
+        "say",
+        "said",
+        "ask",
+        "tell",
+        "give",
+        "take",
+        "see",
+        "look",
+        "find",
+        "think",
+        "believe",
+        "consider",
+        "must",
+        "should",
+        "shall",
     }
-    
+
     # Remove procedural phrases
     for phrase in procedural_phrases:
         words.discard(phrase)
-    
+
     return words - stopwords
 
 
@@ -67,30 +185,45 @@ def count_hallucinations(response: str, case_facts: str) -> int:
     """Count facts in response that are not in the original case facts using improved method."""
     response_facts = extract_facts(response)
     case_fact_set = extract_facts(case_facts)
-    
+
     # Only count words that appear in response but NOT in case facts
     hallucinated = response_facts - case_fact_set
-    
+
     # Filter out very common words that might slip through
     common_words = {
-        'yes', 'no', 'sir', 'madam', 'please', 'thank', 'thanks', 'question', 'answer',
-        'right', 'wrong', 'true', 'false', 'correct', 'incorrect', 'agree', 'disagree'
+        "yes",
+        "no",
+        "sir",
+        "madam",
+        "please",
+        "thank",
+        "thanks",
+        "question",
+        "answer",
+        "right",
+        "wrong",
+        "true",
+        "false",
+        "correct",
+        "incorrect",
+        "agree",
+        "disagree",
     }
     hallucinated = hallucinated - common_words
-    
+
     return len(hallucinated)
 
 
 def count_evidence_citations(response: str) -> int:
     """Count references to evidence in the response."""
     patterns = [
-        r'exhibit',
-        r'evidence',
-        r'witness',
-        r'testimony',
-        r'document',
-        r'record',
-        r'proof',
+        r"exhibit",
+        r"evidence",
+        r"witness",
+        r"testimony",
+        r"document",
+        r"record",
+        r"proof",
     ]
     count = 0
     for pattern in patterns:
@@ -107,22 +240,23 @@ def run_raw_llm_query(case_description: str, use_mock: bool = False) -> Dict:
             "evidence_citations": random.randint(0, 2),
             "time": round(random.uniform(0.3, 0.8), 2),
         }
-    
-    from src.llm import get_llm
+
     from langchain_core.messages import HumanMessage
-    
+
+    from src.llm import get_llm
+
     try:
         llm = get_llm(temperature=0.3, model="qwen-plus-latest")
     except Exception as exc:
         logger.error("Failed to init LLM in run_raw_llm_query: %s", exc, exc_info=True)
         return {"response": f"Error: {exc}", "hallucinations": 0, "evidence_citations": 0, "time": 0}
-    
+
     prompt = f"""Case facts:
 
 {case_description}
 
 What's the verdict? Provide only the verdict and brief reasoning based strictly on the facts provided."""
-    
+
     start = time.time()
     try:
         response = llm.invoke([HumanMessage(content=prompt)])
@@ -132,7 +266,7 @@ What's the verdict? Provide only the verdict and brief reasoning based strictly 
         return {"response": f"Error: {exc}", "hallucinations": 0, "evidence_citations": 0, "time": elapsed}
     elapsed = time.time() - start
     content = response.content
-    
+
     return {
         "response": content,
         "hallucinations": count_hallucinations(content, case_description),
@@ -154,16 +288,24 @@ def run_single_agent_trial(case_description: str, use_mock: bool = False) -> Dic
             "evidence_citations": random.randint(3, 7),
             "time": round(random.uniform(1.0, 2.5), 2),
         }
-    
+
+    from langchain_core.messages import HumanMessage, SystemMessage
+
     from src.llm import get_llm
-    from langchain_core.messages import SystemMessage, HumanMessage
-    
+
     try:
         llm = get_llm(temperature=0.3, model="qwen-plus-latest")
     except Exception as exc:
         logger.error("Failed to init LLM in run_single_agent_trial: %s", exc, exc_info=True)
-        return {"verdict": "Error", "reasoning": f"Error: {exc}", "transcript_length": 0, "hallucinations": 0, "evidence_citations": 0, "time": 0}
-    
+        return {
+            "verdict": "Error",
+            "reasoning": f"Error: {exc}",
+            "transcript_length": 0,
+            "hallucinations": 0,
+            "evidence_citations": 0,
+            "time": 0,
+        }
+
     prompt = f"""You are a judge in a criminal trial. The case facts are:
 
 {case_description}
@@ -178,21 +320,27 @@ Respond in this exact format:
 Verdict: [Your verdict]
 Reasoning: [Your reasoning]
 """
-    
+
     start = time.time()
     try:
-        response = llm.invoke([
-            SystemMessage(content="You are a fair and impartial judge."),
-            HumanMessage(content=prompt)
-        ])
+        response = llm.invoke(
+            [SystemMessage(content="You are a fair and impartial judge."), HumanMessage(content=prompt)]
+        )
     except Exception as exc:
         logger.error("LLM invoke failed in run_single_agent_trial: %s", exc, exc_info=True)
         elapsed = time.time() - start
-        return {"verdict": "Error", "reasoning": f"Error: {exc}", "transcript_length": 0, "hallucinations": 0, "evidence_citations": 0, "time": round(elapsed, 2)}
+        return {
+            "verdict": "Error",
+            "reasoning": f"Error: {exc}",
+            "transcript_length": 0,
+            "hallucinations": 0,
+            "evidence_citations": 0,
+            "time": round(elapsed, 2),
+        }
     elapsed = time.time() - start
 
     content = response.content
-    verdict_match = re.search(r'Verdict:\s*(Guilty|Not Guilty)', content, re.IGNORECASE)
+    verdict_match = re.search(r"Verdict:\s*(Guilty|Not Guilty)", content, re.IGNORECASE)
     verdict = verdict_match.group(1) if verdict_match else "Unknown"
 
     return {
@@ -217,7 +365,7 @@ def run_multi_agent_trial(case_description: str, use_mock: bool = False) -> Dict
             "shadow_jury_consensus": round(random.uniform(0.75, 0.92), 2),
             "time": round(random.uniform(15.0, 30.0), 2),
         }
-    
+
     from src.graph import app as compiled_graph
     from src.state import create_initial_state
 
@@ -236,7 +384,7 @@ def run_multi_agent_trial(case_description: str, use_mock: bool = False) -> Dict
         shadow_jury_count=2,
         jury_count=4,
     )
-    
+
     start = time.time()
     try:
         result = compiled_graph.invoke(initial_state, config={"recursion_limit": 50})
@@ -264,17 +412,16 @@ def run_multi_agent_trial(case_description: str, use_mock: bool = False) -> Dict
             "time": elapsed,
             "error": True,
         }
-    
+
     elapsed = time.time() - start
     verdict = result.get("main_verdict", "Unknown")
     shadow_jury_results = result.get("shadow_jury_results", {})
     win_prob = shadow_jury_results.get("win_probability", 0.5)
-    
-    transcript_text = " ".join([
-        msg.content if hasattr(msg, "content") else str(msg)
-        for msg in result.get("transcript", [])
-    ])
-    
+
+    transcript_text = " ".join(
+        [msg.content if hasattr(msg, "content") else str(msg) for msg in result.get("transcript", [])]
+    )
+
     return {
         "verdict": verdict,
         "reasoning": transcript_text,
@@ -288,92 +435,96 @@ def run_multi_agent_trial(case_description: str, use_mock: bool = False) -> Dict
 
 def run_benchmark(case_description: str, num_runs: int = 3, use_mock: bool = False):
     """Run the benchmark comparing raw LLM vs single-agent vs multi-agent."""
-    print(f"\n{'='*70}")
-    print(f"BENCHMARK: Raw LLM vs Single-Agent vs Multi-Agent")
+    print(f"\n{'=' * 70}")
+    print("BENCHMARK: Raw LLM vs Single-Agent vs Multi-Agent")
     print(f"Case: {case_description[:80]}...")
     print(f"Runs: {num_runs}")
     print(f"Mode: {'MOCK' if use_mock else 'LIVE (API calls)'}")
-    print(f"{'='*70}\n")
-    
+    print(f"{'=' * 70}\n")
+
     raw_results = []
     single_results = []
     multi_results = []
-    
+
     print("Running raw LLM queries...")
     for i in range(num_runs):
-        print(f"  Run {i+1}/{num_runs}...", end=" ")
+        print(f"  Run {i + 1}/{num_runs}...", end=" ")
         result = run_raw_llm_query(case_description, use_mock)
         raw_results.append(result)
         print(f"Done ({result['time']:.2f}s)")
-    
+
     print("\nRunning single-agent trials...")
     for i in range(num_runs):
-        print(f"  Run {i+1}/{num_runs}...", end=" ")
+        print(f"  Run {i + 1}/{num_runs}...", end=" ")
         result = run_single_agent_trial(case_description, use_mock)
         single_results.append(result)
         print(f"Verdict: {result['verdict']} ({result['time']:.2f}s)")
 
     print("\nRunning multi-agent trials...")
     for i in range(num_runs):
-        print(f"  Run {i+1}/{num_runs}...", end=" ")
+        print(f"  Run {i + 1}/{num_runs}...", end=" ")
         result = run_multi_agent_trial(case_description, use_mock)
         multi_results.append(result)
         print(f"Verdict: {result['verdict']} ({result['time']:.2f}s)")
-    
+
     # Calculate metrics
     single_verdicts = [r["verdict"] for r in single_results]
     multi_verdicts = [r["verdict"] for r in multi_results]
-    
+
     single_consistency = single_verdicts.count(single_verdicts[0]) / len(single_verdicts)
     multi_consistency = multi_verdicts.count(multi_verdicts[0]) / len(multi_verdicts)
-    
+
     raw_avg_hallucinations = sum(r["hallucinations"] for r in raw_results) / len(raw_results)
     single_avg_hallucinations = sum(r["hallucinations"] for r in single_results) / len(single_results)
     multi_avg_hallucinations = sum(r["hallucinations"] for r in multi_results) / len(multi_results)
-    
+
     raw_avg_citations = sum(r["evidence_citations"] for r in raw_results) / len(raw_results)
     single_avg_citations = sum(r["evidence_citations"] for r in single_results) / len(single_results)
     multi_avg_citations = sum(r["evidence_citations"] for r in multi_results) / len(multi_results)
-    
+
     raw_avg_time = sum(r["time"] for r in raw_results) / len(raw_results)
     single_avg_time = sum(r["time"] for r in single_results) / len(single_results)
     multi_avg_time = sum(r["time"] for r in multi_results) / len(multi_results)
-    
+
     multi_avg_consensus = sum(r.get("shadow_jury_consensus", 0) for r in multi_results) / len(multi_results)
-    
+
     # Print results
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("RESULTS")
-    print(f"{'='*70}\n")
-    
+    print(f"{'=' * 70}\n")
+
     print(f"{'Metric':<35} {'Raw LLM':<15} {'Single-Agent':<15} {'Multi-Agent':<15}")
-    print(f"{'-'*35} {'-'*15} {'-'*15} {'-'*15}")
-    print(f"{'Avg hallucinations':<35} {raw_avg_hallucinations:<15.1f} {single_avg_hallucinations:<15.1f} {multi_avg_hallucinations:<15.1f}")
-    print(f"{'Avg evidence citations':<35} {raw_avg_citations:<15.1f} {single_avg_citations:<15.1f} {multi_avg_citations:<15.1f}")
+    print(f"{'-' * 35} {'-' * 15} {'-' * 15} {'-' * 15}")
+    print(
+        f"{'Avg hallucinations':<35} {raw_avg_hallucinations:<15.1f} {single_avg_hallucinations:<15.1f} {multi_avg_hallucinations:<15.1f}"
+    )
+    print(
+        f"{'Avg evidence citations':<35} {raw_avg_citations:<15.1f} {single_avg_citations:<15.1f} {multi_avg_citations:<15.1f}"
+    )
     print(f"{'Avg time (seconds)':<35} {raw_avg_time:<15.2f} {single_avg_time:<15.2f} {multi_avg_time:<15.2f}")
     print(f"{'Verdict consistency':<35} {'N/A':<15} {single_consistency:<15.2%} {multi_consistency:<15.2%}")
     print(f"{'Shadow jury consensus':<35} {'N/A':<15} {'N/A':<15} {multi_avg_consensus:<15.2%}")
-    
+
     # Show sample responses
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("SAMPLE RESPONSES")
-    print(f"{'='*70}\n")
-    
+    print(f"{'=' * 70}\n")
+
     print("── Raw LLM Response (what you get from a simple prompt) ──")
     print(raw_results[0]["response"][:500])
     print()
-    
+
     print("── Single-Agent Response (one LLM handles all roles) ──")
     print(single_results[0]["reasoning"][:500])
     print()
-    
+
     print("── Codex legalist Output (11 specialized agents + shadow jury) ──")
     print(f"Verdict: {multi_results[0]['verdict']}")
     print(f"Shadow Jury Consensus: {multi_results[0].get('shadow_jury_consensus', 0):.1%}")
     print(f"Evidence Citations: {multi_results[0]['evidence_citations']}")
     print(f"Transcript Length: {multi_results[0]['transcript_length']} messages")
     print()
-    
+
     # Save results to JSON
     output = {
         "case": case_description,
@@ -401,20 +552,25 @@ def run_benchmark(case_description: str, num_runs: int = 3, use_mock: bool = Fal
             "avg_shadow_jury_consensus": multi_avg_consensus,
         },
     }
-    
+
     with open("benchmark_results.json", "w") as f:
         json.dump(output, f, indent=2)
-    
-    print(f"\nResults saved to benchmark_results.json")
-    print(f"{'='*70}\n")
+
+    print("\nResults saved to benchmark_results.json")
+    print(f"{'=' * 70}\n")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Benchmark raw LLM vs single-agent vs multi-agent trial quality")
-    parser.add_argument("--case", type=str, default="The defendant stole a car from the parking lot at midnight. The witness saw the defendant break the window and drive away.", help="Case description")
+    parser.add_argument(
+        "--case",
+        type=str,
+        default="The defendant stole a car from the parking lot at midnight. The witness saw the defendant break the window and drive away.",
+        help="Case description",
+    )
     parser.add_argument("--runs", type=int, default=3, help="Number of runs per configuration")
     parser.add_argument("--mock", action="store_true", help="Use mocked responses (no API calls)")
-    
+
     args = parser.parse_args()
-    
+
     run_benchmark(args.case, args.runs, args.mock)

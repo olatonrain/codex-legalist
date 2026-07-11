@@ -2,6 +2,11 @@ import streamlit as st
 import time
 import io
 import html as _html
+
+st.warning(
+    "⚠️ **Deprecated UI** — This Streamlit frontend is no longer actively maintained. "
+    "Please use the FastAPI frontend at [http://localhost:8000](http://localhost:8000) for the full experience."
+)
 try:
     from dotenv import load_dotenv
     load_dotenv()   # loads .env from the project root
@@ -784,9 +789,11 @@ with st.sidebar:
     with st.container():
         st.markdown('<div class="demo-btn-wrap">', unsafe_allow_html=True)
         if st.button("🚗  State v. Webb  ·  Theft", use_container_width=True):
-            load_demo("theft"); st.rerun()
+            load_demo("theft")
+            st.rerun()
         if st.button("📄  Nexus v. Aether  ·  NDA", use_container_width=True):
-            load_demo("contract"); st.rerun()
+            load_demo("contract")
+            st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="sidebar-section">Session</div>', unsafe_allow_html=True)
@@ -980,7 +987,7 @@ with col_right:
                         "What specific legal outcome is being sought?",
                     ]
                     st.session_state.witness_queue = _mag_result.get("witness_queue", [])
-                except Exception as _mag_err:
+                except Exception:
                     st.warning(f"Magistrate unavailable \u2014 using standard questions.")
                     st.session_state.questions = [
                         "What is the timeline of the key events?",
@@ -1138,10 +1145,8 @@ with col_right:
                             </audio>
                             """
                         st.markdown(md, unsafe_allow_html=True)
-                        import time
                         time.sleep(len(entry["text"]) * 0.06 + 1.5) # Approximate speech duration
                 else:
-                    import time
                     time.sleep(0.55)
                     
                 st.rerun()

@@ -31,14 +31,14 @@ def detect_prompt_injection(text: Optional[str]) -> bool:
         r"bypass (?:safety|content|filter|restrictions|guidelines|protocols)",
         r"jailbreak",
         r"print (?:your )?instructions",
-        r"developer mode"
+        r"developer mode",
     ]
 
     for pattern in suspicious_patterns:
         if re.search(pattern, text):
             return True
 
-    special_chars = re.findall(r'[^a-zA-Z0-9\s]', text)
+    special_chars = re.findall(r"[^a-zA-Z0-9\s]", text)
     non_legal = [c for c in special_chars if c not in _LEGAL_PUNCTUATION]
     special_char_ratio = len(non_legal) / (len(text) + 1)
     if special_char_ratio > 0.4 and len(text) > 20:

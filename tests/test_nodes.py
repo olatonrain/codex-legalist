@@ -24,7 +24,7 @@ class TestOpeningStatementsNode:
 
     def test_handles_llm_error(self, mock_state):
         mock_state["case_description"] = "The defendant stole a car from the parking lot."
-        with patch("src.nodes.get_llm", side_effect=Exception("API Error")):
+        with patch("src.trial_phases.get_llm", side_effect=Exception("API Error")):
             result = opening_statements_node(mock_state)
             assert len(result["transcript"]) == 1
             assert "could not be generated" in result["transcript"][0].content.lower()
@@ -60,8 +60,8 @@ class TestEvidenceNode:
         mock_structured = MagicMock()
         mock_structured.invoke = MagicMock(side_effect=structured_invoke)
 
-        with patch("src.nodes.get_llm", return_value=mock_llm), \
-             patch("src.nodes.get_structured_llm", return_value=mock_structured):
+        with patch("src.evidence.get_llm", return_value=mock_llm), \
+             patch("src.evidence.get_structured_llm", return_value=mock_structured):
             result = evidence_node(mock_state)
         assert len(result["transcript"]) >= 3
 
@@ -88,17 +88,16 @@ class TestSecurityCheckNode:
 class TestMagistrateNode:
     def test_generates_questions(self, mock_state, mock_structured_llm):
         from src.nodes import MagistrateOutput
-        mock_structured_llm[1].invoke.return_value = MagistrateOutput(
+        mock_structured_llm.invoke.return_value = MagistrateOutput(
             clarifying_questions=["What time did it happen?", "Who witnessed it?"],
             witnesses=["John Doe"]
         )
-        with patch("src.nodes.get_structured_llm", return_value=mock_structured_llm[1]):
-            result = magistrate_node(mock_state)
+        result = magistrate_node(mock_state)
         assert len(result["clarifying_questions"]) == 2
         assert len(result["witness_queue"]) == 1
 
     def test_handles_llm_error(self, mock_state):
-        with patch("src.nodes.get_structured_llm", side_effect=Exception("API Error")):
+        with patch("src.trial_phases.get_structured_llm", side_effect=Exception("API Error")):
             result = magistrate_node(mock_state)
             assert len(result["clarifying_questions"]) == 1
             assert "more details" in result["clarifying_questions"][0]["question"].lower()

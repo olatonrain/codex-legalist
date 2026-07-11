@@ -2,15 +2,15 @@
 # Specify the model for each agent. Options: "qwen-max", "qwen-plus-latest", "qwen-flash", "qwen-turbo-latest"
 
 AGENT_MODELS = {
-    "Magistrate":      "qwen-max",
-    "Judge":           "qwen-max",
-    "Prosecutor":      "qwen-plus-latest",
+    "Magistrate": "qwen-max",
+    "Judge": "qwen-max",
+    "Prosecutor": "qwen-plus-latest",
     "Defense Counsel": "qwen-plus-latest",
-    "Witness":         "qwen-flash",
-    "Fact Checker":    "qwen-plus-latest",
-    "Clerk":           "qwen-flash",
-    "Archivist":       "qwen-turbo-latest",
-    "Jury Foreperson": "qwen-plus-latest"
+    "Witness": "qwen-flash",
+    "Fact Checker": "qwen-plus-latest",
+    "Clerk": "qwen-flash",
+    "Archivist": "qwen-turbo-latest",
+    "Jury Foreperson": "qwen-plus-latest",
 }
 
 # ── Jurisdiction Registry ────────────────────────────────────────

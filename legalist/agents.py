@@ -10,20 +10,22 @@ Responsibilities:
     phase of the trial and returns serialisable transcript entries.
   - norm_agent() / sanitise_content(): shared helpers used by the server.
 """
+
 from __future__ import annotations
 
 import json as _json
 import re as _re
 from typing import Any
 
-from src.llm import get_llm
 from src.config import AGENT_MODELS
+from src.llm import get_llm
 from src.logger import get_logger
 
 logger = get_logger(__name__)
 
 
 # ── Agent normalisation helpers ───────────────────────────────────────────────
+
 
 def norm_agent(name: str | None) -> str:
     """Map raw LLM agent names to canonical render keys."""
@@ -76,13 +78,7 @@ def sanitise_content(content: Any) -> str:
                     return " | ".join(parts)
         except Exception:
             pass
-    return (
-        content
-        .replace("**", "")
-        .replace("*", "")
-        .replace("—", "-")
-        .replace("–", "-")
-    )
+    return content.replace("**", "").replace("*", "").replace("—", "-").replace("–", "-")
 
 
 # ── Dramatic Opening Generator ────────────────────────────────────────────────
@@ -146,7 +142,7 @@ def generate_dramatic_opening(
 
         # Strip markdown fences if present
         raw = raw.strip()
-        fence_match = _re.match(r'^```(?:json)?\s*\n(.*?)\n```', raw, _re.DOTALL)
+        fence_match = _re.match(r"^```(?:json)?\s*\n(.*?)\n```", raw, _re.DOTALL)
         if fence_match:
             raw = fence_match.group(1).strip()
 
@@ -159,38 +155,54 @@ def generate_dramatic_opening(
 
     # ── Static fallback ──────────────────────────────────────────────────────
     return [
-        {"agent": "Bailiff",    "text": f"All rise. The Honorable Justice presiding. This court is now in session for {case_title}."},
-        {"agent": "Judge",      "text": f"You may be seated. Are the prosecution and defense ready to proceed with opening statements in the matter of {case_title}?"},
+        {
+            "agent": "Bailiff",
+            "text": f"All rise. The Honorable Justice presiding. This court is now in session for {case_title}.",
+        },
+        {
+            "agent": "Judge",
+            "text": f"You may be seated. Are the prosecution and defense ready to proceed with opening statements in the matter of {case_title}?",
+        },
         {"agent": "Prosecutor", "text": f"Ready, {address}."},
-        {"agent": "Defense",    "text": f"The defense is ready, {address}."},
-        {"agent": "Judge",      "text": "Prosecution, you may begin your opening statement."},
+        {"agent": "Defense", "text": f"The defense is ready, {address}."},
+        {"agent": "Judge", "text": "Prosecution, you may begin your opening statement."},
     ]
 
 
 # ── Live Trial Step Runner ────────────────────────────────────────────────────
 
 _LIVE_STEPS = [
-    "discovery", "motions", "opening", "evidence",
-    "witness_direct", "witness_cross", "witness_redirect",
-    "rebuttal", "closing", "jury_instructions", "jury_deliberation",
-    "shadow_jury", "sentencing", "reporter",
+    "discovery",
+    "motions",
+    "opening",
+    "evidence",
+    "witness_direct",
+    "witness_cross",
+    "witness_redirect",
+    "rebuttal",
+    "closing",
+    "jury_instructions",
+    "jury_deliberation",
+    "shadow_jury",
+    "sentencing",
+    "reporter",
 ]
 
 _STEP_LABELS = {
-    "discovery":         "Discovery Disclosure",
-    "motions":           "Pre-Trial Motions",
-    "opening":           "Opening Statements",
-    "evidence":          "Evidence Presentation",
-    "witness_direct":    "Witness Direct Examination",
-    "witness_cross":     "Witness Cross-Examination",
-    "witness_redirect":  "Witness Redirect & Impeachment",
-    "rebuttal":          "Rebuttal Evidence",
-    "closing":           "Closing Arguments",
+    "discovery": "Discovery Disclosure",
+    "motions": "Pre-Trial Motions",
+    "opening": "Opening Statements",
+    "evidence": "Evidence Presentation",
+    "witness_direct": "Witness Direct Examination",
+    "witness_cross": "Witness Cross-Examination",
+    "witness_redirect": "Witness Redirect & Impeachment",
+    "rebuttal": "Rebuttal Evidence",
+    "closing": "Closing Arguments",
     "jury_instructions": "Jury Instructions",
     "jury_deliberation": "Jury Deliberation",
-    "shadow_jury":       "Shadow Jury Analysis",
-    "sentencing":        "Sentencing Hearing",
-    "reporter":          "Court Reporter Log",
+    "shadow_jury": "Shadow Jury Analysis",
+    "sentencing": "Sentencing Hearing",
+    "reporter": "Court Reporter Log",
 }
 
 
@@ -203,10 +215,7 @@ def _bailiff_transition(next_step: str, graph_state: dict) -> str:
 
     # Witness phases: include witness name
     if next_step == "witness_direct" and current_witness:
-        return (
-            f"The court will now proceed to the direct examination of {current_witness}. "
-            f"Counsel, please proceed."
-        )
+        return f"The court will now proceed to the direct examination of {current_witness}. Counsel, please proceed."
     elif next_step == "witness_direct" and not current_witness and next_witness:
         return (
             f"The examination of the previous witness is complete. "
@@ -214,8 +223,7 @@ def _bailiff_transition(next_step: str, graph_state: dict) -> str:
         )
     elif next_step == "witness_cross" and current_witness:
         return (
-            f"The court will now proceed to the cross-examination of {current_witness}. "
-            f"Defence counsel, you may begin."
+            f"The court will now proceed to the cross-examination of {current_witness}. Defence counsel, you may begin."
         )
     elif next_step == "witness_redirect" and current_witness:
         return (
@@ -247,10 +255,7 @@ def _phase_opening(live_step: str, graph_state: dict) -> str:
     elif live_step == "witness_redirect" and current_witness:
         return f"The court is now in session for the redirect examination of {current_witness}."
     elif live_step == "evidence":
-        return (
-            f"The court is now in session for evidence presentation. "
-            f"Each side may tender exhibits in turn."
-        )
+        return "The court is now in session for evidence presentation. Each side may tender exhibits in turn."
     else:
         return f"The court is now in session for the {phase_label.lower()}."
 
@@ -265,29 +270,37 @@ def run_trial_step(live_step: str, graph_state: dict) -> tuple[list[dict], dict,
         next_step   – the key for the next phase, or "done"
     """
     from src.nodes import (
-        discovery_node, motion_practice_node,
-        opening_statements_node, evidence_node,
-        witness_direct, witness_cross, witness_redirect,
-        rebuttal_evidence_node, closing_arguments_node,
-        jury_instructions_node, jury_deliberation_node,
-        shadow_jury_node, sentencing_node, reporter_node,
+        closing_arguments_node,
+        discovery_node,
+        evidence_node,
+        jury_deliberation_node,
+        jury_instructions_node,
+        motion_practice_node,
+        opening_statements_node,
+        rebuttal_evidence_node,
+        reporter_node,
+        sentencing_node,
+        shadow_jury_node,
+        witness_cross,
+        witness_direct,
+        witness_redirect,
     )
 
     node_map = {
-        "discovery":         discovery_node,
-        "motions":           motion_practice_node,
-        "opening":           opening_statements_node,
-        "evidence":          evidence_node,
-        "witness_direct":    witness_direct,
-        "witness_cross":     witness_cross,
-        "witness_redirect":  witness_redirect,
-        "rebuttal":          rebuttal_evidence_node,
-        "closing":           closing_arguments_node,
+        "discovery": discovery_node,
+        "motions": motion_practice_node,
+        "opening": opening_statements_node,
+        "evidence": evidence_node,
+        "witness_direct": witness_direct,
+        "witness_cross": witness_cross,
+        "witness_redirect": witness_redirect,
+        "rebuttal": rebuttal_evidence_node,
+        "closing": closing_arguments_node,
         "jury_instructions": jury_instructions_node,
         "jury_deliberation": jury_deliberation_node,
-        "shadow_jury":       shadow_jury_node,
-        "sentencing":        sentencing_node,
-        "reporter":          reporter_node,
+        "shadow_jury": shadow_jury_node,
+        "sentencing": sentencing_node,
+        "reporter": reporter_node,
     }
 
     node_fn = node_map.get(live_step)
@@ -315,11 +328,13 @@ def run_trial_step(live_step: str, graph_state: dict) -> tuple[list[dict], dict,
 
     phase_label = _STEP_LABELS.get(live_step, live_step)
 
-    messages.append({
-        "agent": "Bailiff",
-        "text": _phase_opening(live_step, graph_state),
-        "phase": phase_label,
-    })
+    messages.append(
+        {
+            "agent": "Bailiff",
+            "text": _phase_opening(live_step, graph_state),
+            "phase": phase_label,
+        }
+    )
 
     for key, val in result.items():
         if key == "transcript":
@@ -327,40 +342,46 @@ def run_trial_step(live_step: str, graph_state: dict) -> tuple[list[dict], dict,
             for msg in val:
                 if isinstance(msg, dict):
                     agent = norm_agent(msg.get("name") or msg.get("agent"))
-                    text  = sanitise_content(msg.get("content") or msg.get("text", ""))
+                    text = sanitise_content(msg.get("content") or msg.get("text", ""))
                 else:
                     agent = norm_agent(getattr(msg, "name", None))
-                    text  = sanitise_content(getattr(msg, "content", str(msg)))
-                messages.append({
-                    "agent": agent,
-                    "text":  text,
-                    "phase": phase_label,
-                })
+                    text = sanitise_content(getattr(msg, "content", str(msg)))
+                messages.append(
+                    {
+                        "agent": agent,
+                        "text": text,
+                        "phase": phase_label,
+                    }
+                )
         else:
             graph_state[key] = val
 
     next_step = _next_step_after(live_step, graph_state)
 
     transition = _bailiff_transition(next_step, graph_state)
-    messages.append({
-        "agent": "Bailiff",
-        "text": transition,
-        "phase": phase_label,
-    })
-    if next_step == "done":
-        messages.append({
+    messages.append(
+        {
             "agent": "Bailiff",
-            "text": "This court is adjourned.",
-            "phase": "done",
-        })
+            "text": transition,
+            "phase": phase_label,
+        }
+    )
+    if next_step == "done":
+        messages.append(
+            {
+                "agent": "Bailiff",
+                "text": "This court is adjourned.",
+                "phase": "done",
+            }
+        )
 
     return messages, graph_state, next_step
 
 
 def _next_step_after(live_step: str, graph_state: dict) -> str:
     """Pure routing: given the completed step, return the next phase key."""
-    wq      = graph_state.get("witness_queue", [])
-    rounds  = graph_state.get("deliberation_rounds", 0)
+    wq = graph_state.get("witness_queue", [])
+    rounds = graph_state.get("deliberation_rounds", 0)
     verdict = graph_state.get("main_verdict")
 
     if live_step == "discovery":

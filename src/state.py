@@ -1,4 +1,5 @@
-from typing import TypedDict, List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional, TypedDict
+
 from langchain_core.messages import BaseMessage
 
 
@@ -43,7 +44,7 @@ def create_initial_state(
         "jury_profiles": [],
         "deliberation_snapshot": {},
         "main_verdict": None,
-         "shadow_jury_results": {},
+        "shadow_jury_results": {},
         "errors": [],
         "sentence": None,
         "rebuttal_rounds": 0,
@@ -75,16 +76,16 @@ class TrialState(TypedDict):
     transcript: List[BaseMessage]
 
     # ── Jurisdiction ──────────────────────────────────────────────
-    country: str                  # e.g. "Nigeria"
-    jurisdiction_system: str      # e.g. "Common Law"
-    jurisdiction_procedure: str   # "adversarial" or "inquisitorial"
-    criminal_standard: str        # e.g. "Beyond reasonable doubt"
-    civil_standard: str           # e.g. "Balance of probabilities"
-    evidence_rules: str           # e.g. "Evidence Act 2011; ACJA 2015"
-    jury_enabled: bool            # True = jury trial; False = bench/panel
-    cross_examination: bool       # True = adversarial cross; False = judge-led
-    court_address: str            # How to address the Judge
-    case_type: str                # "Criminal" or "Civil" — set by user
+    country: str  # e.g. "Nigeria"
+    jurisdiction_system: str  # e.g. "Common Law"
+    jurisdiction_procedure: str  # "adversarial" or "inquisitorial"
+    criminal_standard: str  # e.g. "Beyond reasonable doubt"
+    civil_standard: str  # e.g. "Balance of probabilities"
+    evidence_rules: str  # e.g. "Evidence Act 2011; ACJA 2015"
+    jury_enabled: bool  # True = jury trial; False = bench/panel
+    cross_examination: bool  # True = adversarial cross; False = judge-led
+    court_address: str  # How to address the Judge
+    case_type: str  # "Criminal" or "Civil" — set by user
 
     # ── State Compression (Clerk's Domain) ───────────────────────
     fact_sheet: str
@@ -105,21 +106,21 @@ class TrialState(TypedDict):
     witness_queue: List[str]
     declined_witnesses: List[str]
     current_witness: Optional[str]
-    examination_phase: Optional[str]   # 'direct', 'cross', or 'redirect'
+    examination_phase: Optional[str]  # 'direct', 'cross', or 'redirect'
     witness_direct_qa: List[Dict[str, str]]  # Q&A log from direct, passed to cross-examination
-    rebuttal_rounds: int          # 0 or 1 — rebuttal runs once
+    rebuttal_rounds: int  # 0 or 1 — rebuttal runs once
     objection_history: List[Dict[str, Any]]  # log of objections and rulings
     impeachment_attempts: List[Dict[str, Any]]  # impeachment log per witness
-    expert_witnesses: List[str]   # witnesses qualified as experts
+    expert_witnesses: List[str]  # witnesses qualified as experts
     motion_rulings: List[Dict[str, Any]]  # pre-trial motion rulings
     disclosed_prosecution: List[str]  # prosecution's disclosed evidence
-    disclosed_defense: List[str]   # defence's disclosed evidence
-    trial_log: Dict[str, Any]      # court reporter's structured trial log
+    disclosed_defense: List[str]  # defence's disclosed evidence
+    trial_log: Dict[str, Any]  # court reporter's structured trial log
 
     # ── Configurations ────────────────────────────────────────────
     shadow_jury_count: int
     shadow_jury_model: str
-    jury_count: int            # Main jury panel size (default 12, set at setup)
+    jury_count: int  # Main jury panel size (default 12, set at setup)
     audio_enabled: bool
 
     # ── Outcomes ──────────────────────────────────────────────────
@@ -128,7 +129,7 @@ class TrialState(TypedDict):
     deliberation_snapshot: Dict[str, Any]
     main_verdict: Optional[str]
     shadow_jury_results: Dict[str, Any]
-    sentence: Optional[str]       # Judge's sentence after Guilty/Liable verdict
+    sentence: Optional[str]  # Judge's sentence after Guilty/Liable verdict
 
     # ── Error Handling ────────────────────────────────────────────
     errors: List[str]

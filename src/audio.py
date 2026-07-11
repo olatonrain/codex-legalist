@@ -1,12 +1,15 @@
+import base64
 import os
 from typing import Optional
-import requests
+
 import dashscope
-import base64
+import requests
 from openai import OpenAI
+
 from src.logger import get_logger
 
 logger = get_logger(__name__)
+
 
 def _set_key():
     """Sets the DashScope API key from environment."""
@@ -16,8 +19,8 @@ def _set_key():
     dashscope.api_key = key
     # Route endpoints internationally if the workspace key is detected
     if key.startswith("sk-ws-"):
-        dashscope.base_http_api_url = 'https://dashscope-intl.aliyuncs.com/api/v1'
-        dashscope.base_websocket_api_url = 'wss://dashscope-intl.aliyuncs.com/api-ws/v1/inference'
+        dashscope.base_http_api_url = "https://dashscope-intl.aliyuncs.com/api/v1"
+        dashscope.base_websocket_api_url = "wss://dashscope-intl.aliyuncs.com/api-ws/v1/inference"
 
 
 def transcribe_audio(audio_bytes: bytes, filename: str = "audio.wav") -> str:
@@ -36,8 +39,7 @@ def transcribe_audio(audio_bytes: bytes, filename: str = "audio.wav") -> str:
 
     raise RuntimeError(
         "No configured Qwen audio model could transcribe the file. "
-        "Set QWEN_AUDIO_MODEL to an audio/omni model enabled on your Qwen Cloud account. "
-        + " | ".join(errors)
+        "Set QWEN_AUDIO_MODEL to an audio/omni model enabled on your Qwen Cloud account. " + " | ".join(errors)
     )
 
 
@@ -76,22 +78,24 @@ def _transcribe_with_qwen_audio_llm(audio_bytes: bytes, filename: str, model: st
 
     response = client.chat.completions.create(
         model=model,
-        messages=[{
-            "role": "user",
-            "content": [
-                {
-                    "type": "text",
-                    "text": "Transcribe this courtroom case-facts audio exactly. Return only the transcript text.",
-                },
-                {
-                    "type": "input_audio",
-                    "input_audio": {
-                        "data": data_uri,
-                        "format": suffix,
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Transcribe this courtroom case-facts audio exactly. Return only the transcript text.",
                     },
-                },
-            ],
-        }],
+                    {
+                        "type": "input_audio",
+                        "input_audio": {
+                            "data": data_uri,
+                            "format": suffix,
+                        },
+                    },
+                ],
+            }
+        ],
         temperature=0,
         stream=stream,
         **extra,
@@ -116,14 +120,12 @@ def generate_speech(text: str, voice: str = "Cherry") -> Optional[bytes]:
     _set_key()
     try:
         from dashscope.audio.qwen_tts import SpeechSynthesizer as QwenSpeechSynthesizer
+
         res = QwenSpeechSynthesizer.call(
-            model=os.getenv("QWEN_TTS_MODEL", "qwen3-tts-flash"),
-            api_key=dashscope.api_key,
-            text=text,
-            voice=voice
+            model=os.getenv("QWEN_TTS_MODEL", "qwen3-tts-flash"), api_key=dashscope.api_key, text=text, voice=voice
         )
-        if res.status_code == 200 and res.output and 'audio' in res.output and 'url' in res.output['audio']:
-            return requests.get(res.output['audio']['url'], timeout=30).content
+        if res.status_code == 200 and res.output and "audio" in res.output and "url" in res.output["audio"]:
+            return requests.get(res.output["audio"]["url"], timeout=30).content
         else:
             logger.error(f"Qwen TTS Error: {res.message}")
             return None

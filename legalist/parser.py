@@ -4,6 +4,7 @@ legalist/parser.py
 Thin file-parsing helpers.
 Supports PDF, DOCX, and plain-text uploads.
 """
+
 from __future__ import annotations
 
 import io
@@ -16,6 +17,7 @@ def extract_text(raw: bytes, filename: str) -> str:
     if name.endswith(".pdf"):
         try:
             from pypdf import PdfReader
+
             reader = PdfReader(io.BytesIO(raw))
             return "\n".join(page.extract_text() or "" for page in reader.pages)
         except Exception as exc:
@@ -24,6 +26,7 @@ def extract_text(raw: bytes, filename: str) -> str:
     if name.endswith(".docx"):
         try:
             import docx
+
             doc = docx.Document(io.BytesIO(raw))
             return "\n".join(p.text for p in doc.paragraphs)
         except Exception as exc:

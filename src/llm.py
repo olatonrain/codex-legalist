@@ -1,8 +1,9 @@
+import logging
 import os
 import time
-import logging
+
 from langchain_openai import ChatOpenAI
-from openai import APIError, APIConnectionError, RateLimitError, AuthenticationError
+from openai import APIConnectionError, APIError, AuthenticationError, RateLimitError
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,10 @@ def _retry_on_api_error(func, *args, **kwargs):
             delay = _RETRY_BASE_DELAY * (2 ** (attempt - 1))
             logger.warning(
                 "LLM API transient error (attempt %d/%d): %s. Retrying in %.1fs...",
-                attempt, _MAX_RETRIES, exc, delay,
+                attempt,
+                _MAX_RETRIES,
+                exc,
+                delay,
             )
             time.sleep(delay)
         except AuthenticationError as exc:
@@ -33,7 +37,10 @@ def _retry_on_api_error(func, *args, **kwargs):
                 delay = _RETRY_BASE_DELAY * (2 ** (attempt - 1))
                 logger.warning(
                     "LLM API error (attempt %d/%d): %s. Retrying in %.1fs...",
-                    attempt, _MAX_RETRIES, exc, delay,
+                    attempt,
+                    _MAX_RETRIES,
+                    exc,
+                    delay,
                 )
                 time.sleep(delay)
             else:
@@ -94,9 +101,13 @@ async def _retry_on_api_error_async(func, *args, **kwargs):
             delay = _RETRY_BASE_DELAY * (2 ** (attempt - 1))
             logger.warning(
                 "LLM API transient error (attempt %d/%d): %s. Retrying in %.1fs...",
-                attempt, _MAX_RETRIES, exc, delay,
+                attempt,
+                _MAX_RETRIES,
+                exc,
+                delay,
             )
             import asyncio
+
             await asyncio.sleep(delay)
         except AuthenticationError as exc:
             logger.error("LLM AuthenticationError: %s. Check QWEN_API_KEY.", exc)
@@ -107,9 +118,13 @@ async def _retry_on_api_error_async(func, *args, **kwargs):
                 delay = _RETRY_BASE_DELAY * (2 ** (attempt - 1))
                 logger.warning(
                     "LLM API error (attempt %d/%d): %s. Retrying in %.1fs...",
-                    attempt, _MAX_RETRIES, exc, delay,
+                    attempt,
+                    _MAX_RETRIES,
+                    exc,
+                    delay,
                 )
                 import asyncio
+
                 await asyncio.sleep(delay)
             else:
                 logger.error("LLM API error after %d attempts: %s", _MAX_RETRIES, exc)
@@ -125,7 +140,9 @@ def get_structured_llm(schema, temperature: float = 0.1, model: str = "qwen-max"
         logger.error(
             "Failed to bind structured output (schema=%s, model=%s): %s",
             schema.__name__ if hasattr(schema, "__name__") else str(schema),
-            model, exc, exc_info=True,
+            model,
+            exc,
+            exc_info=True,
         )
         raise
     return _RetryStructuredLLM(structured)

@@ -23,36 +23,41 @@ Run
 ───
     uvicorn server:app --reload --port 8000
 """
+
 from __future__ import annotations
 
 import json as _json
+import os
 import re
 import time
 import uuid
+from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List
-from collections import defaultdict
 
-from langchain_core.messages import BaseMessage, AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from legalist.agents import generate_dramatic_opening, run_trial_step
 from legalist.data import DEMO_CASES
 from legalist.parser import extract_text
-from legalist.agents import generate_dramatic_opening, run_trial_step
-from src.config import JURISDICTIONS, COUNTRY_LIST, DEFAULT_COUNTRY
-from src.security import detect_prompt_injection
+from src.config import COUNTRY_LIST, DEFAULT_COUNTRY, JURISDICTIONS
+from src.insight import _compute_cache_key
+from src.insight import generate_one as generate_insight
 from src.logger import get_logger
+from src.security import detect_prompt_injection
 
 logger = get_logger(__name__)
 
@@ -60,23 +65,32 @@ logger = get_logger(__name__)
 
 app = FastAPI(title="Codex legalist API", version="1.0.0")
 
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
+@app.on_event("startup")
+async def check_api_key():
+    """Warn if QWEN_API_KEY is missing — backend won't crash but LLM calls will fail."""
+    if not os.getenv("QWEN_API_KEY"):
+        logger.warning(
+            "QWEN_API_KEY is not set. LLM calls will fail until a valid key is configured. "
+            "Set it in .env or export QWEN_API_KEY=your_key"
+        )
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Catch-all handler that ensures all errors return JSON, never HTML."""
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={"detail": f"Internal server error: {str(exc)}"}
-    )
+    return JSONResponse(status_code=500, content={"detail": f"Internal server error: {str(exc)}"})
+
 
 BASE_DIR = Path(__file__).parent
 
@@ -85,6 +99,9 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 _rate_limit_store: dict[str, list[float]] = defaultdict(list)
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX = 30
+
+# In-memory insight cache: key = sha256(case_hash + "|" + perspective)
+_insight_cache: dict[str, dict] = {}
 
 # Serve static assets (JS, CSS, images) from /static
 STATIC_DIR = BASE_DIR / "static"
@@ -97,18 +114,13 @@ async def rate_limit_middleware(request: Request, call_next):
     now = time.time()
     window_start = now - RATE_LIMIT_WINDOW
 
-    _rate_limit_store[client_ip] = [
-        t for t in _rate_limit_store[client_ip] if t > window_start
-    ]
+    _rate_limit_store[client_ip] = [t for t in _rate_limit_store[client_ip] if t > window_start]
 
     if not _rate_limit_store[client_ip]:
         del _rate_limit_store[client_ip]
 
     if client_ip in _rate_limit_store and len(_rate_limit_store[client_ip]) >= RATE_LIMIT_MAX:
-        return JSONResponse(
-            status_code=429,
-            content={"detail": "Rate limit exceeded. Try again later."}
-        )
+        return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded. Try again later."})
 
     _rate_limit_store[client_ip].append(now)
     response = await call_next(request)
@@ -117,12 +129,14 @@ async def rate_limit_middleware(request: Request, call_next):
 
 # ── Root → serve the UI ──────────────────────────────────────────────────────
 
+
 @app.get("/", include_in_schema=False)
 def serve_ui():
     return FileResponse(str(BASE_DIR / "index.html"))
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
+
 
 @app.get("/api/health")
 def health():
@@ -131,6 +145,7 @@ def health():
 
 # ── Jurisdiction list ─────────────────────────────────────────────────────────
 
+
 @app.get("/api/jurisdictions")
 def get_jurisdictions():
     return {"countries": COUNTRY_LIST, "data": JURISDICTIONS}
@@ -138,8 +153,9 @@ def get_jurisdictions():
 
 # ── Demo Case ─────────────────────────────────────────────────────────────────
 
+
 class DemoRequest(BaseModel):
-    demo_key: str           # "theft" | "contract"
+    demo_key: str  # "theft" | "contract"
     shadow_juries: int = 20
 
 
@@ -152,20 +168,21 @@ def load_demo(req: DemoRequest):
     script = case["trial_script"]
 
     return {
-        "title":        case["title"],
+        "title": case["title"],
         "jurisdiction": case.get("jurisdiction", "—"),
-        "description":  case["description"],
-        "questions":    case["questions"],
-        "verdict":      case["verdict"],
+        "description": case["description"],
+        "questions": case["questions"],
+        "verdict": case["verdict"],
         "win_probability": case["win_probability"],
-        "sensitivity":  case["sensitivity"],
+        "sensitivity": case["sensitivity"],
         "shadow_jury_narrative": case.get("shadow_jury_narrative", []),
-        "script":       script,          # full script for the client to stream
-        "total_steps":  len(script),
+        "script": script,  # full script for the client to stream
+        "total_steps": len(script),
     }
 
 
 # ── File Upload ───────────────────────────────────────────────────────────────
+
 
 @app.post("/api/upload")
 async def upload_case_file(file: UploadFile = File(...)):
@@ -186,12 +203,15 @@ async def upload_audio_file(file: UploadFile = File(...)):
     if len(raw) > MAX_UPLOAD_BYTES:
         raise HTTPException(413, "File too large. Maximum 10 MB.")
     from src.audio import transcribe_audio
+
     try:
         text = transcribe_audio(raw, file.filename or "audio.wav")
     except Exception as exc:
         raise HTTPException(400, f"Could not transcribe audio: {exc}")
     if not text.strip():
-        raise HTTPException(400, "Could not transcribe audio from file. The audio service returned an empty transcript.")
+        raise HTTPException(
+            400, "Could not transcribe audio from file. The audio service returned an empty transcript."
+        )
     if detect_prompt_injection(text):
         raise HTTPException(400, "[CONTEMPT OF COURT] Prompt injection detected in audio transcript.")
     return {"filename": file.filename, "text": text, "char_count": len(text)}
@@ -199,12 +219,13 @@ async def upload_audio_file(file: UploadFile = File(...)):
 
 # ── Magistrate Questions ──────────────────────────────────────────────────────
 
+
 class MagistrateRequest(BaseModel):
-    case_text:    str
-    country:      str  = DEFAULT_COUNTRY
-    case_type:    str  = "Criminal"
+    case_text: str
+    country: str = DEFAULT_COUNTRY
+    case_type: str = "Criminal"
     shadow_juries: int = 20
-    jury_count:   int  = 12
+    jury_count: int = 12
 
 
 @app.post("/api/trial/magistrate")
@@ -213,6 +234,7 @@ def run_magistrate(req: MagistrateRequest):
     try:
         from src.nodes import magistrate_node
         from src.state import create_initial_state
+
         state = create_initial_state(
             case_description=req.case_text,
             country=req.country,
@@ -253,48 +275,178 @@ def _magistrate_fallback(case_text: str) -> dict:
     lower = case_text.lower()
 
     # ── Detect timeline mentions ──────────────────────────────────
-    has_timeline = any(w in lower for w in [
-        "date", "time", "when", "day", "month", "year", "week", "hour",
-        "minute", "midnight", "noon", "morning", "afternoon", "evening",
-        "january", "february", "march", "april", "may", "june",
-        "july", "august", "september", "october", "november", "december",
-        "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
-        "2020", "2021", "2022", "2023", "2024", "2025", "2026",
-        "yesterday", "today", "last night", "this morning",
-        "o'clock", "pm", "am",
-    ]) or bool(re.search(r"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b", lower))
+    has_timeline = any(
+        w in lower
+        for w in [
+            "date",
+            "time",
+            "when",
+            "day",
+            "month",
+            "year",
+            "week",
+            "hour",
+            "minute",
+            "midnight",
+            "noon",
+            "morning",
+            "afternoon",
+            "evening",
+            "january",
+            "february",
+            "march",
+            "april",
+            "may",
+            "june",
+            "july",
+            "august",
+            "september",
+            "october",
+            "november",
+            "december",
+            "jan",
+            "feb",
+            "mar",
+            "apr",
+            "jun",
+            "jul",
+            "aug",
+            "sep",
+            "oct",
+            "nov",
+            "dec",
+            "2020",
+            "2021",
+            "2022",
+            "2023",
+            "2024",
+            "2025",
+            "2026",
+            "yesterday",
+            "today",
+            "last night",
+            "this morning",
+            "o'clock",
+            "pm",
+            "am",
+        ]
+    ) or bool(re.search(r"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b", lower))
 
     # ── Detect evidence mentions ──────────────────────────────────
-    has_evidence = any(w in lower for w in [
-        "evidence", "document", "exhibit", "photo", "video", "record",
-        "cctv", "footage", "camera", "recording", "audio", "image",
-        "contract", "agreement", "nda", "email", "letter", "report",
-        "fingerprint", "dna", "forensic", "medical", "receipt",
-        "statement", "affidavit", "screenshot", "log", "database",
-        "file", "archive", "subpoena", "warrant",
-    ])
+    has_evidence = any(
+        w in lower
+        for w in [
+            "evidence",
+            "document",
+            "exhibit",
+            "photo",
+            "video",
+            "record",
+            "cctv",
+            "footage",
+            "camera",
+            "recording",
+            "audio",
+            "image",
+            "contract",
+            "agreement",
+            "nda",
+            "email",
+            "letter",
+            "report",
+            "fingerprint",
+            "dna",
+            "forensic",
+            "medical",
+            "receipt",
+            "statement",
+            "affidavit",
+            "screenshot",
+            "log",
+            "database",
+            "file",
+            "archive",
+            "subpoena",
+            "warrant",
+        ]
+    )
 
     # ── Detect person / witness mentions ──────────────────────────
-    has_witness = any(w in lower for w in [
-        "witness", "testimony", "saw", "heard", "observed",
-        "plaintiff", "defendant", "victim", "accused",
-        "complainant", "respondent", "claimant",
-        "doctor", "nurse", "officer", "detective", "agent",
-        "manager", "owner", "employee", "director", "ceo",
-        "expert", "specialist", "consultant", "analyst",
-        "bystander", "neighbour", "neighbor", "friend", "colleague",
-        "eyewitness", "witnesses",
-    ]) or bool(re.search(r"\b[A-Z][a-z]+ [A-Z][a-z]+\b", case_text))
+    has_witness = any(
+        w in lower
+        for w in [
+            "witness",
+            "testimony",
+            "saw",
+            "heard",
+            "observed",
+            "plaintiff",
+            "defendant",
+            "victim",
+            "accused",
+            "complainant",
+            "respondent",
+            "claimant",
+            "doctor",
+            "nurse",
+            "officer",
+            "detective",
+            "agent",
+            "manager",
+            "owner",
+            "employee",
+            "director",
+            "ceo",
+            "expert",
+            "specialist",
+            "consultant",
+            "analyst",
+            "bystander",
+            "neighbour",
+            "neighbor",
+            "friend",
+            "colleague",
+            "eyewitness",
+            "witnesses",
+        ]
+    ) or bool(re.search(r"\b[A-Z][a-z]+ [A-Z][a-z]+\b", case_text))
 
     # ── Detect relationship mentions ──────────────────────────────
-    has_relationship = any(w in lower for w in [
-        "relationship", "prior", "previous", "knew", "acquaintance",
-        "married", "spouse", "husband", "wife", "partner",
-        "brother", "sister", "mother", "father", "parent",
-        "friend", "enemy", "stranger", "colleague", "coworker",
-        "boss", "subordinate", "client", "customer", "tenant",
-        "landlord", "neighbour", "neighbor", "relative", "family",
-    ])
+    has_relationship = any(
+        w in lower
+        for w in [
+            "relationship",
+            "prior",
+            "previous",
+            "knew",
+            "acquaintance",
+            "married",
+            "spouse",
+            "husband",
+            "wife",
+            "partner",
+            "brother",
+            "sister",
+            "mother",
+            "father",
+            "parent",
+            "friend",
+            "enemy",
+            "stranger",
+            "colleague",
+            "coworker",
+            "boss",
+            "subordinate",
+            "client",
+            "customer",
+            "tenant",
+            "landlord",
+            "neighbour",
+            "neighbor",
+            "relative",
+            "family",
+        ]
+    )
 
     questions = []
     if not has_timeline:
@@ -322,17 +474,18 @@ def _magistrate_fallback(case_text: str) -> dict:
 
 # ── Live Trial: Start ─────────────────────────────────────────────────────────
 
+
 class TrialStartRequest(BaseModel):
-    case_text:      str
-    case_title:     str  = "Custom Case"
-    country:        str  = DEFAULT_COUNTRY
-    case_type:      str  = "Criminal"
-    human_answers:  Dict[str, str] = {}
+    case_text: str
+    case_title: str = "Custom Case"
+    country: str = DEFAULT_COUNTRY
+    case_type: str = "Criminal"
+    human_answers: Dict[str, str] = {}
     missing_evidence_answers: Dict[str, str] = {}
     missing_witnesses_answers: Dict[str, str] = {}
-    witness_queue:  List[str] = []
-    shadow_juries:  int  = 20
-    jury_count:     int  = 12
+    witness_queue: List[str] = []
+    shadow_juries: int = 20
+    jury_count: int = 12
 
 
 @app.post("/api/trial/start")
@@ -371,6 +524,7 @@ def trial_start(req: TrialStartRequest):
     )
 
     from src.state import create_initial_state
+
     graph_state = create_initial_state(
         case_description=enriched_case,
         country=req.country,
@@ -394,16 +548,17 @@ def trial_start(req: TrialStartRequest):
     if graph_state["jury_enabled"]:
         try:
             from src.nodes import generate_dynamic_jury_profiles
+
             graph_state["jury_profiles"] = generate_dynamic_jury_profiles(graph_state)
         except Exception as exc:
             logger.error(f"[trial_start] Jury profile generation skipped: {exc}", exc_info=True)
             graph_state.setdefault("errors", []).append(f"Jury profile generation failed: {exc}")
 
     return {
-        "opening_lines": opening_lines,   # dramatic courtroom opening
-        "graph_state":   graph_state,
-        "live_step":     "discovery",
-        "jurisdiction":  f"{jx['flag']} {req.country} · {jx['system']}",
+        "opening_lines": opening_lines,  # dramatic courtroom opening
+        "graph_state": graph_state,
+        "live_step": "discovery",
+        "jurisdiction": f"{jx['flag']} {req.country} · {jx['system']}",
     }
 
 
@@ -424,10 +579,12 @@ def _deserialize_transcript(entries: list) -> list[BaseMessage]:
         elif isinstance(msg, dict):
             msg_type = msg.get("type", "ai").lower()
             cls = _type_map.get(msg_type, AIMessage)
-            result.append(cls(
-                content=msg.get("content", ""),
-                name=msg.get("name") or msg.get("agent") or "System",
-            ))
+            result.append(
+                cls(
+                    content=msg.get("content", ""),
+                    name=msg.get("name") or msg.get("agent") or "System",
+                )
+            )
         elif isinstance(msg, str):
             result.append(AIMessage(content=msg, name="System"))
         else:
@@ -447,18 +604,21 @@ def _serialize_transcript(entries: list) -> list[dict]:
                 type_name = "human"
             elif isinstance(msg, SystemMessage):
                 type_name = "system"
-            serialized.append({
-                "type": type_name,
-                "name": getattr(msg, "name", None) or "System",
-                "content": getattr(msg, "content", str(msg)),
-            })
+            serialized.append(
+                {
+                    "type": type_name,
+                    "name": getattr(msg, "name", None) or "System",
+                    "content": getattr(msg, "content", str(msg)),
+                }
+            )
     return serialized
 
 
 # ── Live Trial: Step ──────────────────────────────────────────────────────────
 
+
 class TrialStepRequest(BaseModel):
-    live_step:   str
+    live_step: str
     graph_state: dict
 
 
@@ -494,15 +654,15 @@ def trial_step(req: TrialStepRequest):
     new_state["transcript"] = serialized
 
     response: dict = {
-        "messages":    messages,
+        "messages": messages,
         "graph_state": new_state,
         "current_step": req.live_step,
-        "next_step":   next_step,
+        "next_step": next_step,
     }
 
     if next_step == "done":
-        sjr       = new_state.get("shadow_jury_results", {})
-        snapshot  = new_state.get("deliberation_snapshot", {})
+        sjr = new_state.get("shadow_jury_results", {})
+        snapshot = new_state.get("deliberation_snapshot", {})
         verdict_str = new_state.get("main_verdict") or "No Verdict Reached"
 
         actual_jury = {
@@ -529,23 +689,27 @@ def trial_step(req: TrialStepRequest):
                 + f". {snapshot.get('rationale', '')}"
             )
         elif sjr.get("total_juries"):
-            win_prob  = sjr.get("win_probability", 0.5)
+            win_prob = sjr.get("win_probability", 0.5)
             total_actual = sjr.get("total_juries", 20)
             burden_met = sjr.get("burden_met_votes", 0)
             sensitivity = (
                 f"{burden_met} of {total_actual} shadow juries found the evidence met the burden of proof. "
-                + ("The defence successfully raised doubt." if win_prob < 0.5 else "The prosecution's evidence was compelling.")
+                + (
+                    "The defence successfully raised doubt."
+                    if win_prob < 0.5
+                    else "The prosecution's evidence was compelling."
+                )
             )
         else:
-            win_prob  = 0.0 if verdict_str in ("Not Guilty", "Not Liable") else 1.0
+            win_prob = 0.0 if verdict_str in ("Not Guilty", "Not Liable") else 1.0
             total_actual = 0
             sensitivity = "No-case submission or early termination — no jury analysis was reached."
 
         response["verdict_data"] = {
-            "verdict":     verdict_str,
+            "verdict": verdict_str,
             "probability": win_prob,
             "sensitivity": sensitivity,
-            "juries":      total_actual,
+            "juries": total_actual,
             "actual_jury": actual_jury,
             "shadow_jury": sjr if sjr else None,
         }
@@ -557,6 +721,7 @@ def trial_step(req: TrialStepRequest):
 
 
 # ── Live Human Input ──────────────────────────────────────────────────────────
+
 
 class HumanQuestionRequest(BaseModel):
     graph_state: dict
@@ -593,18 +758,20 @@ def submit_human_answer(req: HumanAnswerRequest):
         pending = req.graph_state.get("pending_human_question", {})
         if not pending:
             raise HTTPException(400, "No pending question to answer")
-        
+
         if "human_input_buffer" not in req.graph_state:
             req.graph_state["human_input_buffer"] = []
-        req.graph_state["human_input_buffer"].append({
-            "agent": pending.get("agent", "Unknown"),
-            "question": pending.get("question", ""),
-            "answer": req.answer,
-            "context": pending.get("context", ""),
-        })
-        
+        req.graph_state["human_input_buffer"].append(
+            {
+                "agent": pending.get("agent", "Unknown"),
+                "question": pending.get("question", ""),
+                "answer": req.answer,
+                "context": pending.get("context", ""),
+            }
+        )
+
         req.graph_state["pending_human_question"] = None
-        
+
         return {"status": "answer_recorded", "graph_state": req.graph_state}
     except HTTPException:
         raise
@@ -664,15 +831,25 @@ def list_saves():
         try:
             with open(path) as f:
                 data = _json.load(f)
-            saves.append({
-                "save_id": data.get("save_id", path.stem),
-                "case_title": data.get("case_title", "Untitled"),
-                "saved_at": data.get("saved_at", "Unknown"),
-                "verdict": data.get("verdict", "In Progress"),
-                "country": data.get("country", ""),
-            })
+            saves.append(
+                {
+                    "save_id": data.get("save_id", path.stem),
+                    "case_title": data.get("case_title", "Untitled"),
+                    "saved_at": data.get("saved_at", "Unknown"),
+                    "verdict": data.get("verdict", "In Progress"),
+                    "country": data.get("country", ""),
+                }
+            )
         except Exception:
-            saves.append({"save_id": path.stem, "case_title": path.stem, "saved_at": "Unknown", "verdict": "Unknown", "country": ""})
+            saves.append(
+                {
+                    "save_id": path.stem,
+                    "case_title": path.stem,
+                    "saved_at": "Unknown",
+                    "verdict": "Unknown",
+                    "country": "",
+                }
+            )
     return {"saves": saves}
 
 
@@ -713,6 +890,7 @@ def delete_trial_save(save_id: str):
 
 # ── Transcript Export ─────────────────────────────────────────────────────────
 
+
 @app.api_route("/api/trial/transcript", methods=["GET", "POST"])
 async def export_transcript(request: Request):
     body = {}
@@ -732,9 +910,16 @@ async def export_transcript(request: Request):
     entries = []
     for msg in transcript:
         if isinstance(msg, dict):
-            entries.append({"agent": msg.get("name") or msg.get("agent") or "System", "text": msg.get("content") or msg.get("text", "")})
+            entries.append(
+                {
+                    "agent": msg.get("name") or msg.get("agent") or "System",
+                    "text": msg.get("content") or msg.get("text", ""),
+                }
+            )
         else:
-            entries.append({"agent": getattr(msg, "name", "System") or "System", "text": getattr(msg, "content", str(msg))})
+            entries.append(
+                {"agent": getattr(msg, "name", "System") or "System", "text": getattr(msg, "content", str(msg))}
+            )
 
     if format_type == "markdown":
         md = f"# Trial Transcript\n\n**Case:** {graph_state.get('case_title', 'Untitled')}\n"
@@ -755,6 +940,7 @@ async def export_transcript(request: Request):
 
 # ── Benchmark ─────────────────────────────────────────────────────────────────
 
+
 class BenchmarkRequest(BaseModel):
     case_description: str
     num_runs: int = 3
@@ -764,36 +950,36 @@ class BenchmarkRequest(BaseModel):
 @app.post("/api/benchmark/run")
 def run_benchmark(req: BenchmarkRequest):
     try:
-        from legalist.benchmark import run_raw_llm_query, run_single_agent_trial, run_multi_agent_trial
-        
+        from legalist.benchmark import run_multi_agent_trial, run_raw_llm_query, run_single_agent_trial
+
         raw_results = []
         single_results = []
         multi_results = []
         errors = []
-        
+
         for i in range(req.num_runs):
             try:
                 raw_results.append(run_raw_llm_query(req.case_description, req.use_mock))
                 single_results.append(run_single_agent_trial(req.case_description, req.use_mock))
                 multi_result = run_multi_agent_trial(req.case_description, req.use_mock)
-                
+
                 if multi_result.get("error"):
-                    errors.append(f"Run {i+1}: {multi_result.get('reasoning', 'Unknown error')}")
+                    errors.append(f"Run {i + 1}: {multi_result.get('reasoning', 'Unknown error')}")
                     break
-                
+
                 multi_results.append(multi_result)
             except Exception as run_exc:
-                errors.append(f"Run {i+1}: {str(run_exc)[:200]}")
+                errors.append(f"Run {i + 1}: {str(run_exc)[:200]}")
                 break
-        
+
         if not multi_results and errors:
             raise HTTPException(500, f"Benchmark failed: {errors[0]}")
-        
+
         def safe_avg(results, key, default=0):
             if not results:
                 return default
             return sum(r.get(key, default) for r in results) / len(results)
-        
+
         return {
             "raw_llm": {
                 "results": raw_results,
@@ -819,3 +1005,40 @@ def run_benchmark(req: BenchmarkRequest):
         raise
     except Exception as exc:
         raise HTTPException(500, f"Benchmark failed: {exc}")
+
+
+# ── Counsel Insights ───────────────────────────────────────────────────────────
+
+
+class InsightRequest(BaseModel):
+    graph_state: dict
+    perspectives: list[str] = ["defense", "prosecution", "judge"]
+
+
+@app.post("/api/trial/insight")
+def trial_insight(req: InsightRequest):
+    valid = {"defense", "prosecution", "judge"}
+    requested = [p for p in req.perspectives if p in valid]
+    if not requested:
+        raise HTTPException(400, "At least one valid perspective required: defense, prosecution, or judge.")
+
+    results: dict[str, dict] = {}
+    state = req.graph_state
+
+    for perspective in requested:
+        cache_key = _compute_cache_key(state, perspective)
+        cached = _insight_cache.get(cache_key)
+        if cached:
+            results[perspective] = cached
+            continue
+
+        try:
+            result = generate_insight(state, perspective)
+            if isinstance(result, dict) and "error" not in result:
+                _insight_cache[cache_key] = result
+            results[perspective] = result
+        except Exception as exc:
+            logger.error("[insight] %s failed: %s", perspective, exc, exc_info=True)
+            results[perspective] = {"error": str(exc)}
+
+    return {"insights": results}

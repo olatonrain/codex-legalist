@@ -17,7 +17,7 @@ class TrialSafetyTests(unittest.TestCase):
         def fail_get_llm(*args, **kwargs):
             raise AssertionError("LLM should not be called for insufficient facts")
 
-        with patch("src.nodes.get_llm", fail_get_llm):
+        with patch("src.trial_phases.get_llm", fail_get_llm):
             result = opening_statements_node(_state("hello"))
 
         transcript = result["transcript"]
@@ -33,7 +33,7 @@ class TrialSafetyTests(unittest.TestCase):
         def fail_get_llm(*args, **kwargs):
             raise AssertionError("LLM should not be called for insufficient facts")
 
-        with patch("src.nodes.get_llm", fail_get_llm), patch("src.nodes.get_structured_llm", fail_get_llm):
+        with patch("src.evidence.get_llm", fail_get_llm), patch("src.evidence.get_structured_llm", fail_get_llm):
             result = evidence_node(_state("hello"))
 
         transcript = result["transcript"]

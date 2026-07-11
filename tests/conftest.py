@@ -1,7 +1,16 @@
 import pytest
+from contextlib import ExitStack
 from unittest.mock import MagicMock, patch
 from langchain_core.messages import AIMessage
 from src.state import create_initial_state
+
+# Modules that import get_llm / get_structured_llm from src.llm
+_LLM_TARGETS = [
+    "src.trial_phases",
+    "src.evidence",
+    "src.witness",
+    "src.jury",
+]
 
 
 @pytest.fixture
@@ -25,24 +34,20 @@ def mock_state():
 
 @pytest.fixture
 def mock_llm():
-    """Mock LLM that returns predictable responses.
-    Patches src.nodes.get_llm because src.nodes imports it via
-    'from src.llm import get_llm', creating a separate namespace binding.
-    """
-    with patch("src.nodes.get_llm") as mock:
-        mock_instance = MagicMock()
-        mock_instance.invoke.return_value = AIMessage(content="Mocked LLM response")
-        mock.return_value = mock_instance
-        yield mock
+    """Mock LLM across all domain modules."""
+    mock_instance = MagicMock()
+    mock_instance.invoke.return_value = AIMessage(content="Mocked LLM response")
+    with ExitStack() as stack:
+        for mod in _LLM_TARGETS:
+            stack.enter_context(patch(f"{mod}.get_llm", return_value=mock_instance))
+        yield mock_instance
 
 
 @pytest.fixture
 def mock_structured_llm():
-    """Mock structured LLM that returns Pydantic models.
-    Patches src.nodes.get_structured_llm because src.nodes imports it via
-    'from src.llm import get_structured_llm', creating a separate namespace binding.
-    """
-    with patch("src.nodes.get_structured_llm") as mock:
-        mock_instance = MagicMock()
-        mock.return_value = mock_instance
-        yield mock, mock_instance
+    """Mock structured LLM across all domain modules."""
+    mock_instance = MagicMock()
+    with ExitStack() as stack:
+        for mod in _LLM_TARGETS:
+            stack.enter_context(patch(f"{mod}.get_structured_llm", return_value=mock_instance))
+        yield mock_instance
