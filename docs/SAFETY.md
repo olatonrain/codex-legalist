@@ -1,6 +1,7 @@
 # Safety Guidelines
 
-> This is a copy of `/SAFETY.md`. The root file is canonical — update both when making changes.
+This file covers safety guidelines, data handling limits, deployment guardrails, human-in-the-loop checkpoints, and agent guardrails.
+
 
 This file covers safety guardrails only. See [SECURITY.md](SECURITY.md) for vulnerability reporting, dependency scanning, secrets handling, and authentication policy. Zero content overlap.
 

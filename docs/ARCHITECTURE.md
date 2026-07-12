@@ -1,6 +1,7 @@
 # Architecture
 
-> This is a copy of `/ARCHITECTURE.md`. The root file is canonical — update both when making changes.
+This document describes the system architecture, tech stack, directory layout, frontend modules, backend APIs, agent society roles, and the data flow of Codex legalist.
+
 
 ## Table of Contents
 
