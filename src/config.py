@@ -1,3 +1,4 @@
+"""Application configuration — agent model mappings, file size limits, API key setup."""
 # ── Agent Model Configuration ───────────────────────────────────
 # Specify the model for each agent. Options: "qwen-max", "qwen-plus-latest", "qwen-flash", "qwen-turbo-latest"
 

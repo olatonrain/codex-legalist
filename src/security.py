@@ -1,3 +1,4 @@
+"""Prompt injection detection — scans user input for known attack patterns before trial entry."""
 import re
 import unicodedata
 from typing import Optional

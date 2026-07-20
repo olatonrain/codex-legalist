@@ -1,3 +1,4 @@
+"""Pydantic schemas — structured output models for LLM agent responses."""
 from pydantic import BaseModel, Field
 
 

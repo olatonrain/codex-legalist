@@ -106,6 +106,7 @@ flowchart TD
 ```
 .
 ├── server.py                 # FastAPI entry point — all API routes
+├── app.py                    # Demo UI server — Flask-based transcript rendering
 ├── deploy-docker.sh          # Docker deployment script
 ├── requirements.txt          # Python dependencies
 ├── .env.example              # Environment variable template
@@ -125,7 +126,6 @@ flowchart TD
 │   ├── __init__.py           # Package marker
 │   ├── graph.py              # LangGraph StateGraph definition
 │   ├── state.py              # TrialState schema
-│   ├── agents.py             # Per-phase agent logic
 │   ├── insight.py            # Post-trial counsel insight generation
 │   ├── config.py             # Agent model mappings, constants
 │   ├── prompts.py            # All LLM prompt templates
@@ -133,24 +133,33 @@ flowchart TD
 │   ├── trial_phases.py       # Phase routing helpers
 │   ├── llm.py                # LLM client factory
 │   ├── logger.py             # Logging configuration
-│   └── security.py           # Prompt injection detection
+│   ├── security.py           # Prompt injection detection
+│   ├── audio.py              # Audio transcription
+│   ├── evidence.py           # Evidence handling
+│   ├── nodes.py              # LangGraph node definitions
+│   ├── witness.py            # Witness agent logic
+│   ├── jury.py               # Jury agent logic
+│   ├── benchmark_helpers.py  # Shared benchmark utilities (safe_avg, aggregation)
+│   └── dispatcher.py         # Phase routing
 │
 ├── legalist/                 # Professional package (public API)
 │   ├── __init__.py
 │   ├── agents.py             # Agent invocation helpers
 │   ├── benchmark.py          # Benchmark: raw LLM, single-agent, multi-agent
-│   ├── data.py               # Demo case definitions
+│   ├── data.py               # Demo case definitions + agent styling constants
 │   └── parser.py             # File upload parsing (PDF, DOCX, TXT)
 │
 ├── tests/                    # Pytest test suite
-│   └── test_*.py             # 118 tests covering all modules
+│   └── test_*.py             # Tests covering all modules
 │
 ├── docs/                     # Documentation
 │   ├── ARCHITECTURE.md       # (same content, kept for docs/ completeness)
 │   ├── BENCHMARK.md           # Benchmark methodology and results
+│   ├── CONTRIBUTING.md        # Contribution guide
 │   ├── DEPLOYMENT.md          # Deployment guide
 │   ├── USAGE.md               # User guide
 │   ├── SAFETY.md              # Data handling and guardrails
+│   ├── TESTING.md             # Testing guide
 │   └── architecture_diagram.png
 │
 └── sample_cases/             # Ready-to-upload case files

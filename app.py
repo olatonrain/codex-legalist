@@ -545,220 +545,10 @@ hr { border-color: var(--border) !important; margin: 1rem 0 !important; }
 """, unsafe_allow_html=True)
 
 # ─── Demo Data ────────────────────────────────────────────────
-DEMO_CASES = {
-    "ransomware": {
-        "title": "State v. Dmitri Volkov — Ransomware Attack on St. Jude's Hospital",
-        "jurisdiction": "United States · Federal District Court, Southern District",
-        "description": "The defendant, Dmitri Volkov, is charged with computer intrusion and attempted extortion after a ransomware attack encrypted 14,000 patient records at St. Jude's Medical Center. FBI digital forensics traced the attack to Volkov's laptop and SSH keys. Volkov claims he was attending a conference in Berlin — passport stamps, hotel records, and badge scans confirm his presence. Defense argues his credentials could have been stolen via a known laptop vulnerability.",
-        "questions": [
-            "Could Volkov's SSH keys have been copied from his laptop without his knowledge?",
-            "Does the Berlin hotel WiFi logs show continuous device activity during the attack window?",
-            "Was Volkov's laptop encrypted or password-protected, and who else had physical access?",
-            "Can IP geolocation evidence definitively rule out a VPN relay from Berlin to a US server?",
-            "Were any other suspects identified with access to St. Jude's network infrastructure?"
-        ],
-        "trial_script": [
-            {"agent": "System",     "text": "Court is now in session. The Honorable Justice Park presiding.", "phase": "Opening"},
-            {"agent": "Judge",      "text": "State versus Dmitri Volkov — computer intrusion and attempted extortion. Prosecution, you may begin.", "phase": "Opening"},
-            {"agent": "Prosecutor", "text": "The evidence will show that at 2:14 AM on July 12th, Volkov's laptop and SSH keys were used to launch a ransomware attack on St. Jude's Hospital. The Bitcoin ransom was traced to his personal exchange account.", "phase": "Opening"},
-            {"agent": "Defense",    "text": "The prosecution cannot place my client at a keyboard. He was 4,000 miles away in Berlin with passport stamps, hotel records, and conference badge scans to prove it. His credentials could have been stolen.", "phase": "Opening"},
-            {"agent": "System",     "text": "— Evidence Presentation —", "phase": "Evidence"},
-            {"agent": "Prosecutor", "text": "The People submit Exhibit A: Volkov's laptop containing SSH keys matching the compromised hospital server.", "phase": "Evidence"},
-            {"agent": "Judge",      "text": "Exhibit A admitted.", "phase": "Evidence"},
-            {"agent": "Prosecutor", "text": "The People submit Exhibit B: IP address logs from St. Jude's showing the intrusion originated from a VPN endpoint.", "phase": "Evidence"},
-            {"agent": "Defense",    "text": "Objection. Foundation — no St. Jude's witness to authenticate the logs.", "phase": "Evidence"},
-            {"agent": "Judge",      "text": "Conditionally admitted subject to authentication. FRE 104(b).", "phase": "Evidence"},
-            {"agent": "Prosecutor", "text": "The People submit Exhibit C: blockchain records linking the ransom wallet to an exchange account registered to Volkov.", "phase": "Evidence"},
-            {"agent": "Judge",      "text": "Exhibit C admitted.", "phase": "Evidence"},
-            {"agent": "Defense",    "text": "The defense submits Exhibit D: passport stamps showing Volkov entered Germany on July 10th and departed July 14th.", "phase": "Evidence"},
-            {"agent": "Judge",      "text": "Exhibit D admitted.", "phase": "Evidence"},
-            {"agent": "System",     "text": "— Witness Examination —", "phase": "Witness"},
-            {"agent": "Prosecutor", "text": "The People call Special Agent Marcus Chen, FBI Digital Forensics. Agent Chen, describe your findings.", "phase": "Witness"},
-            {"agent": "Witness",    "text": "Volkov's laptop contained SSH private keys matching the authorized_keys on St. Jude's compromised server. The keys were added to the server at 2:14 AM on July 12th — the exact time of the attack.", "phase": "Witness"},
-            {"agent": "Defense",    "text": "Agent Chen — can you tell us which device presented those keys? The SSH protocol authenticates the key, not the device. It could have been any computer anywhere in the world, correct?", "phase": "Witness"},
-            {"agent": "Witness",    "text": "That is correct. The protocol does not log the client device. The key could have been used from any location.", "phase": "Witness"},
-            {"agent": "Fact Checker","text": "✓ SSH protocol limitation confirmed.", "phase": "Witness"},
-            {"agent": "Defense",    "text": "The defense calls Dr. Amina Patel, cybersecurity professor at Georgia Tech. Dr. Patel — is there a known vulnerability in Volkov's laptop model that allows credential theft?", "phase": "Witness"},
-            {"agent": "Witness",    "text": "Yes. CVE-2022-33180 allows an attacker with 90 seconds of physical access to copy the entire SSD contents without knowing the password. Volkov's laptop had the vulnerable BIOS.", "phase": "Witness"},
-            {"agent": "Prosecutor", "text": "Dr. Patel — is there any evidence this vulnerability was actually exploited?", "phase": "Witness"},
-            {"agent": "Witness",    "text": "The exploit leaves no trace. That is its nature. The absence of evidence of exploitation is consistent with the exploit being used.", "phase": "Witness"},
-            {"agent": "Fact Checker","text": "✓ CVE confirmed in NVD database.", "phase": "Witness"},
-            {"agent": "System",     "text": "— Closing Arguments —", "phase": "Closing"},
-            {"agent": "Prosecutor", "text": "Volkov's SSH keys were used. His laptop contained them. His Bitcoin account received the ransom. The timing is precise. The defense offers speculation about a theoretical exploit with no evidence it happened.", "phase": "Closing"},
-            {"agent": "Defense",    "text": "The standard is beyond reasonable doubt. Digital credentials can be stolen. A known vulnerability makes that possible. The Berlin alibi proves he was 4,000 miles away. The prosecution has not excluded reasonable doubt.", "phase": "Closing"},
-            {"agent": "System",     "text": "— Jury Deliberation —", "phase": "Deliberation"},
-            {"agent": "Judge",      "text": "Members of the jury — determine whether guilt has been proven beyond reasonable doubt. You must reach a unanimous verdict.", "phase": "Deliberation"},
-            {"agent": "Foreperson", "text": "Each juror, please state your initial position.", "phase": "Deliberation"},
-            {"agent": "Juror",      "text": "Juror #1 (Analytical): Not Guilty. The SSH key proves the key was used — not that Volkov used it. The CVE vulnerability is documented.", "phase": "Deliberation"},
-            {"agent": "Juror",      "text": "Juror #2 (Skeptical): Guilty. The Bitcoin exchange KYC records require photo ID. That is hard to explain away.", "phase": "Deliberation"},
-            {"agent": "Juror",      "text": "Juror #3 (Empathetic): Not Guilty. The Berlin alibi is strong. Passport stamps and hotel records are not easily faked.", "phase": "Deliberation"},
-            {"agent": "Juror",      "text": "Juror #4 (Pragmatic): Not Guilty. Without a witness placing Volkov at the keyboard, this is entirely circumstantial.", "phase": "Deliberation"},
-            {"agent": "Foreperson", "text": "Round 1: 3 Not Guilty, 1 Guilty. Juror #2 — further thoughts?", "phase": "Deliberation"},
-            {"agent": "Juror",      "text": "Juror #2: The KYC is strong but the account was opened six months before the attack — it could have been taken over. And the CVE exploit is a real possibility. Changing to Not Guilty.", "phase": "Deliberation"},
-            {"agent": "Foreperson", "text": "Round 2: 4 Not Guilty, 0 Guilty. Unanimous verdict reached.", "phase": "Deliberation"},
-            {"agent": "System",     "text": "— Verdict —", "phase": "Verdict"},
-            {"agent": "Judge",      "text": "On all counts, the defendant Dmitri Volkov is found NOT GUILTY. Court is adjourned.", "phase": "Verdict"},
-        ],
-        "verdict": "NOT GUILTY", "win_probability": 0.31,
-        "sensitivity": "If Volkov's laptop had full-disk encryption enabled → Prosecution win probability rises to 74%",
-        "shadow_jury_narrative": [
-            {"name": "Shadow Juror 1", "content": "The Berlin alibi is strong. Passport stamps and hotel records are not easily faked. [Vote: Not Guilty]"},
-            {"name": "Shadow Juror 2", "content": "Digital credentials can be stolen. The CVE vulnerability is documented and unpatched. [Vote: Not Guilty]"},
-            {"name": "Shadow Juror 3", "content": "The Bitcoin trail is concerning but the alibi creates reasonable doubt. [Vote: Not Guilty]"},
-            {"name": "Shadow Juror 4", "content": "Without a witness placing Volkov at the keyboard, this is circumstantial. [Vote: Not Guilty]"},
-            {"name": "Shadow Juror 5", "content": "Suspicion is not proof. The defense raised sufficient doubt. [Vote: Not Guilty]"},
-        ],
-    },
-    "spill": {
-        "title": "Coastal Protection Agency v. Meridian Oil — Toxic Spill Cover-Up",
-        "jurisdiction": "United States · Federal District Court, Eastern District",
-        "description": "The Coastal Protection Agency alleges Meridian Oil is liable for an 80,000-gallon crude oil spill at Point Reyes Marine Sanctuary. A whistleblower provided internal emails showing Meridian knew about severe pipe corrosion six weeks before the spill but deferred repairs to save $2 million. Satellite imagery confirms the spill originated from Meridian's platform.",
-        "questions": [
-            "When was the pipe corrosion first documented in Meridian's internal inspection reports?",
-            "Did Meridian receive a specific written recommendation to shut down Pipeline 7-A?",
-            "Can satellite imagery definitively attribute the spill to Meridian's Platform Charlie?",
-            "What was the quantified economic damage to local fishing and tourism industries?",
-            "Did Meridian's maintenance schedule comply with federal Pipeline Safety Act standards?"
-        ],
-        "trial_script": [
-            {"agent": "System",     "text": "Civil proceeding in session. The Honorable Justice Cross presiding.", "phase": "Opening"},
-            {"agent": "Judge",      "text": "Coastal Protection Agency versus Meridian Oil Corporation — Clean Water Act violation. Plaintiff, you may proceed.", "phase": "Opening"},
-            {"agent": "Prosecutor", "text": "Meridian Oil knew about the corroded pipe and chose profit over safety. Internal emails prove it. Satellite imagery proves the spill came from their platform. The damage is documented at $4.7 million.", "phase": "Opening"},
-            {"agent": "Defense",    "text": "Meridian met all regulatory standards. The pipe failure was unforeseeable. Every pipeline has some corrosion — the question is whether it was severe enough to warrant immediate shutdown.", "phase": "Opening"},
-            {"agent": "System",     "text": "— Evidence Presentation —", "phase": "Evidence"},
-            {"agent": "Prosecutor", "text": "Plaintiff submits Exhibit A: internal emails showing Meridian's lead inspector recommended immediate shutdown of Pipeline 7-A due to 78% wall loss.", "phase": "Evidence"},
-            {"agent": "Judge",      "text": "Exhibit A admitted subject to authentication.", "phase": "Evidence"},
-            {"agent": "Prosecutor", "text": "Plaintiff submits Exhibit B: NOAA satellite imagery showing the oil slick originating from Meridian's Platform Charlie.", "phase": "Evidence"},
-            {"agent": "Defense",    "text": "Objection. The NOAA analyst is not here to authenticate.", "phase": "Evidence"},
-            {"agent": "Judge",      "text": "Overruled. Satellite imagery is demonstrative evidence. NOAA records are self-authenticating under FRE 902. Exhibit B admitted.", "phase": "Evidence"},
-            {"agent": "System",     "text": "— Witness Examination —", "phase": "Witness"},
-            {"agent": "Prosecutor", "text": "The plaintiff calls James Okafor, former Meridian pipeline engineer. Mr. Okafor, what did you find on Pipeline 7-A?", "phase": "Witness"},
-            {"agent": "Witness",    "text": "78% wall loss on a 20-inch diameter pipe. Industry best practice recommends shutdown at 70%. I recommended immediate shutdown. Management said the $2 million cost was unacceptable and deferred to Q3.", "phase": "Witness"},
-            {"agent": "Defense",    "text": "Mr. Okafor — you were fired for violating your NDA and you are currently suing Meridian for $2.3 million. You have a financial interest in the outcome of this case, correct?", "phase": "Witness"},
-            {"agent": "Witness",    "text": "My wrongful termination case is separate. But yes, I am suing them.", "phase": "Witness"},
-            {"agent": "Fact Checker","text": "✓ Financial interest disclosed. Credibility matter for jury.", "phase": "Witness"},
-            {"agent": "Prosecutor", "text": "The plaintiff calls Dr. Elena Vasquez, marine toxicologist. Dr. Vasquez — describe the damage.", "phase": "Witness"},
-            {"agent": "Witness",    "text": "80,000 gallons affected 200 square miles. 2,400 seabird deaths, 18 oyster beds contaminated, $4.7 million in lost fishery revenue in the first year alone. Long-term sediment toxicity will persist 7-12 years.", "phase": "Witness"},
-            {"agent": "Defense",    "text": "Dr. Vasquez — your $4.7 million figure assumes full-year fishing that was never going to happen. Spawning season restrictions already limited the catch.", "phase": "Witness"},
-            {"agent": "Witness",    "text": "I used NOAA's standard model which accounts for seasonal variation.", "phase": "Witness"},
-            {"agent": "Fact Checker","text": "✓ Economic data sourced from NOAA fisheries survey.", "phase": "Witness"},
-            {"agent": "System",     "text": "— Closing Arguments —", "phase": "Closing"},
-            {"agent": "Prosecutor", "text": "The emails prove Meridian knew. Their own engineers told them to shut it down. They chose profit over safety. 80,000 gallons of oil later, the marine sanctuary is devastated. By a preponderance of the evidence, they are liable.", "phase": "Closing"},
-            {"agent": "Defense",    "text": "The plaintiff rests on one employee who is suing Meridian for millions. The independent audit confirmed the pipe was safe for 14 more months. Hindsight is not negligence.", "phase": "Closing"},
-            {"agent": "System",     "text": "— Jury Deliberation —", "phase": "Deliberation"},
-            {"agent": "Judge",      "text": "Jury — determine by a preponderance of evidence whether Meridian Oil failed to exercise reasonable care.", "phase": "Deliberation"},
-            {"agent": "Foreperson", "text": "Initial positions, please.", "phase": "Deliberation"},
-            {"agent": "Juror",      "text": "Juror #1 (Analytical): Liable. The emails are damning. Management knew and chose deferral over safety.", "phase": "Deliberation"},
-            {"agent": "Juror",      "text": "Juror #2 (Skeptical): Not Liable. Okafor has a financial motive. The independent audit said the pipe was safe.", "phase": "Deliberation"},
-            {"agent": "Juror",      "text": "Juror #3 (Empathetic): Liable. Whether Okafor is biased, the emails exist. If they had acted, the spill does not happen.", "phase": "Deliberation"},
-            {"agent": "Juror",      "text": "Juror #4 (Pragmatic): Liable. Choosing to defer a known risk for quarterly earnings is not reasonable care.", "phase": "Deliberation"},
-            {"agent": "Foreperson", "text": "Round 1: 3 Liable, 1 Not Liable. Juror #2?", "phase": "Deliberation"},
-            {"agent": "Juror",      "text": "Juror #2: The emails speak for themselves. Management knew. Changing to Liable.", "phase": "Deliberation"},
-            {"agent": "Foreperson", "text": "Round 2: 4 Liable, 0 Not Liable. Unanimous.", "phase": "Deliberation"},
-            {"agent": "System",     "text": "— Verdict —", "phase": "Verdict"},
-            {"agent": "Judge",      "text": "The jury finds Meridian Oil LIABLE for violation of the Clean Water Act. Damages to be assessed. Court adjourned.", "phase": "Verdict"},
-        ],
-        "verdict": "LIABLE", "win_probability": 0.78,
-        "sensitivity": "If the whistleblower emails were ruled inadmissible → Plaintiff win probability drops to 44%",
-        "sentence": {
-            "sentence": "The court finds Meridian Oil liable under the Clean Water Act and awards damages.",
-            "term": "$4.7 million economic damages, $12 million ecological restoration, $8 million civil penalty. Total: $24.7 million.",
-            "rationale": "Meridian knowingly deferred pipeline repair despite engineer recommendation. Emails demonstrate conscious cost-benefit decision favoring profit over safety.",
-        },
-        "shadow_jury_narrative": [
-            {"name": "Shadow Juror 1", "content": "The internal emails are the strongest evidence. Meridian's own engineers warned them. [Vote: Liable]"},
-            {"name": "Shadow Juror 2", "content": "Okafor's financial interest is concerning, but the documentary evidence stands. [Vote: Liable]"},
-            {"name": "Shadow Juror 3", "content": "78% wall loss with a shutdown recommendation creates clear liability. [Vote: Liable]"},
-            {"name": "Shadow Juror 4", "content": "The spill was preventable. The emails prove knowledge. Textbook corporate negligence. [Vote: Liable]"},
-            {"name": "Shadow Juror 5", "content": "Reasonable care requires listening to your engineers. Meridian did not. [Vote: Liable]"},
-        ],
-    },
-    "clinical": {
-        "title": "State v. Dr. Sarah Blake — Involuntary Manslaughter by Clinical Trial Misconduct",
-        "jurisdiction": "United States · Federal District Court, Southern District of New York",
-        "description": "Dr. Sarah Blake is charged with involuntary manslaughter after patient Marcus Chen died from cytokine storm during an unauthorized Phase I clinical trial. Blake administered an experimental immunotherapy drug at 2.5x the maximum safe starting dose without IRB approval. The consent forms were backdated to appear signed before treatment began.",
-        "questions": [
-            "When was the IRB application actually submitted relative to the first dose administered?",
-            "Were the consent forms signed before or after the first dose based on document analysis?",
-            "Did the administered dosing protocol match what was submitted in the IRB application?",
-            "Had Dr. Blake conducted similar unauthorized trials at any other institution?",
-            "Was the patient informed that the drug had never been tested in humans before?"
-        ],
-        "trial_script": [
-            {"agent": "System",     "text": "Court is now in session. The Honorable Justice Vance presiding.", "phase": "Opening"},
-            {"agent": "Judge",      "text": "State versus Dr. Sarah Blake — involuntary manslaughter and reckless endangerment. Prosecution, you may begin.", "phase": "Opening"},
-            {"agent": "Prosecutor", "text": "Dr. Blake gave Marcus Chen an experimental drug that had never been tested in humans. She gave him 2.5 times the maximum safe dose. She did not get permission from the ethics committee. And when questioned, the consent form date had been altered. Marcus Chen died in agony.", "phase": "Opening"},
-            {"agent": "Defense",    "text": "Marcus Chen had weeks to live. Dr. Blake spent hours discussing the risks. He consented. The emergency exception exists for dying patients who cannot wait for paperwork. Dr. Blake was trying to save his life.", "phase": "Opening"},
-            {"agent": "System",     "text": "— Evidence Presentation —", "phase": "Evidence"},
-            {"agent": "Prosecutor", "text": "The People submit Exhibit A: IRB application showing submission date March 15th — two days after Chen received his first dose on March 13th.", "phase": "Evidence"},
-            {"agent": "Defense",    "text": "Objection. The IRB chair could have given verbal authorization under the emergency exception.", "phase": "Evidence"},
-            {"agent": "Judge",      "text": "Overruled. Exhibit A admitted as a business record under FRE 803(6).", "phase": "Evidence"},
-            {"agent": "Prosecutor", "text": "The People submit Exhibit B: consent forms with forensic analysis showing the date '12' was written over an original '3' — altered from March 13th to March 12th.", "phase": "Evidence"},
-            {"agent": "Defense",    "text": "Objection. Foundation — the analyst has not been qualified. Best Evidence Rule requires the original.", "phase": "Evidence"},
-            {"agent": "Judge",      "text": "Conditionally admitted subject to expert qualification. FRE 104(b).", "phase": "Evidence"},
-            {"agent": "Prosecutor", "text": "The People submit Exhibit C: pharmacy records showing ONC-279 was dispensed at 0.75 mg/kg — 2.5x the maximum safe starting dose of 0.3 mg/kg.", "phase": "Evidence"},
-            {"agent": "Judge",      "text": "Exhibit C admitted.", "phase": "Evidence"},
-            {"agent": "System",     "text": "— Witness Examination —", "phase": "Witness"},
-            {"agent": "Prosecutor", "text": "The People call Dr. Patricia Okonkwo, IRB Chair. Dr. Okonkwo — did Dr. Blake receive verbal authorization?", "phase": "Witness"},
-            {"agent": "Witness",    "text": "No. There is no record of any verbal authorization. I am the only person authorized to grant emergency exceptions. Dr. Blake never contacted me.", "phase": "Witness"},
-            {"agent": "Defense",    "text": "Dr. Okonkwo — could Dr. Blake have spoken with an IRB staffer who indicated the application would be approved?", "phase": "Witness"},
-            {"agent": "Witness",    "text": "No staff member has that authority.", "phase": "Witness"},
-            {"agent": "Fact Checker","text": "✓ IRB records reviewed. No exception documented.", "phase": "Witness"},
-            {"agent": "Prosecutor", "text": "The People call Dr. Karen Sato, forensic document examiner. Dr. Sato — your analysis of the consent form?", "phase": "Witness"},
-            {"agent": "Witness",    "text": "The date '12' was written over an original '3'. Two chemically distinct inks. The signature block matches the altered ink, not the original. The form was signed at the time of alteration — after treatment.", "phase": "Witness"},
-            {"agent": "Defense",    "text": "Dr. Sato — you cannot determine WHO made the alteration. The form could have been altered by anyone.", "phase": "Witness"},
-            {"agent": "Witness",    "text": "I cannot identify the person. Only that an alteration was made.", "phase": "Witness"},
-            {"agent": "Fact Checker","text": "✓ Methodology peer-reviewed and published in Journal of Forensic Sciences.", "phase": "Witness"},
-            {"agent": "Defense",    "text": "The defense calls Dr. Jonathan Weiss, clinical pharmacologist. Dr. Weiss — was 0.75 mg/kg reasonable for this patient?", "phase": "Witness"},
-            {"agent": "Witness",    "text": "Yes. For a patient with weeks to live, the risk-benefit calculus shifts. Many investigators would consider up to 1.0 mg/kg justified. Dr. Blake's choice was within reasonable medical judgment.", "phase": "Witness"},
-            {"agent": "Prosecutor", "text": "Dr. Weiss — the IND says 0.3 mg/kg is the maximum safe starting dose. Dr. Blake exceeded that by 150%. Does 'maximum safe' leave room for that?", "phase": "Witness"},
-            {"agent": "Witness",    "text": "IND starting doses are conservative. Investigators have clinical discretion, especially in terminal patients.", "phase": "Witness"},
-            {"agent": "Fact Checker","text": "✓ Expert offered opinion on standard of care.", "phase": "Witness"},
-            {"agent": "System",     "text": "— Closing Arguments —", "phase": "Closing"},
-            {"agent": "Prosecutor", "text": "No IRB approval. Backdated consent form. 2.5x the safe dose. Three separate protocol violations. Each one alone is serious. Together they are criminal recklessness. Marcus Chen died because Dr. Blake ignored the rules.", "phase": "Closing"},
-            {"agent": "Defense",    "text": "Paperwork errors are not manslaughter. Dr. Blake spent 45 minutes explaining risks to a dying man who consented. The dose was within clinical discretion. She tried to save a life. That is not a crime.", "phase": "Closing"},
-            {"agent": "System",     "text": "— Jury Deliberation —", "phase": "Deliberation"},
-            {"agent": "Judge",      "text": "Members of the jury — determine whether the defendant acted with criminal negligence beyond a reasonable doubt. You must reach a unanimous verdict.", "phase": "Deliberation"},
-            {"agent": "Foreperson", "text": "Each juror, please state your initial position.", "phase": "Deliberation"},
-            {"agent": "Juror",      "text": "Juror #1 (Analytical): Guilty. The altered consent form shows consciousness of guilt.", "phase": "Deliberation"},
-            {"agent": "Juror",      "text": "Juror #2 (Empathetic): Not Guilty. She was trying to help a dying man.", "phase": "Deliberation"},
-            {"agent": "Juror",      "text": "Juror #3 (Skeptical): Guilty. 2.5x the safe dose plus no IRB approval plus altered consent — that is a pattern of recklessness.", "phase": "Deliberation"},
-            {"agent": "Juror",      "text": "Juror #4 (Pragmatic): Guilty. Three violations is not an accident — it is a deliberate choice to bypass safeguards.", "phase": "Deliberation"},
-            {"agent": "Foreperson", "text": "Round 1: 3 Guilty, 1 Not Guilty. Juror #2 — what would change your mind?", "phase": "Deliberation"},
-            {"agent": "Juror",      "text": "Juror #2: The altered date troubles me. If everything was above board, why change it? I cannot reconcile that. Changing to Guilty.", "phase": "Deliberation"},
-            {"agent": "Foreperson", "text": "Round 2: 4 Guilty, 0 Not Guilty. Unanimous verdict reached.", "phase": "Deliberation"},
-            {"agent": "System",     "text": "— Verdict —", "phase": "Verdict"},
-            {"agent": "Judge",      "text": "The jury finds Dr. Sarah Blake GUILTY of involuntary manslaughter and reckless endangerment. Sentencing to follow. Court adjourned.", "phase": "Verdict"},
-        ],
-        "verdict": "GUILTY", "win_probability": 0.71,
-        "sensitivity": "If consent forms were properly dated and signed before treatment → Defense win probability rises to 65%",
-        "sentence": {
-            "sentence": "Involuntary Manslaughter — 6 years imprisonment. Reckless Endangerment — 3 years, concurrent.",
-            "term": "6 years imprisonment. Parole eligibility after serving 85%.",
-            "rationale": "Aggravating: abuse of physician trust, altered consent form, 2.5x maximum safe dose, patient death. Mitigating: 15 years of patient care, no prior record, patient terminal and consented.",
-        },
-        "shadow_jury_narrative": [
-            {"name": "Shadow Juror 1", "content": "The altered consent form is damning. Why change the date if everything was legitimate? [Vote: Guilty]"},
-            {"name": "Shadow Juror 2", "content": "No IRB approval + altered consent + excessive dosing = pattern of recklessness. [Vote: Guilty]"},
-            {"name": "Shadow Juror 3", "content": "Dr. Blake's motive was to help, but motive is not a defense. The rules exist for patient safety. [Vote: Guilty]"},
-            {"name": "Shadow Juror 4", "content": "Her explanation about the ink — a pen with two cartridges — is not credible. [Vote: Guilty]"},
-            {"name": "Shadow Juror 5", "content": "She was trying to save a life, but the deviation from protocol was too extreme. [Vote: Guilty]"},
-        ],
-    }
-}
+from legalist.data import DEMO_CASES
 
 # ─── Agent Mapping ─────────────────────────────────────────────
-AGENT_STYLE = {
-    "Judge":       ("JD", "av-judge"),
-    "Prosecutor":  ("PR", "av-prosecutor"),
-    "Defense":     ("DF", "av-defense"),
-    "Witness":     ("WS", "av-witness"),
-    "Magistrate":  ("MG", "av-magistrate"),
-    "Foreperson":  ("FP", "av-foreperson"),
-    "Juror":       ("JR", "av-juror"),
-    "Fact Checker":("FC", "av-checker"),
-    "System":      ("—",  "av-system"),
-}
+from legalist.data import AGENT_STYLE, AGENT_NAME_COLOR
 
 def render_msg(agent, text, *, trusted_html: bool = False):
     """Render a single transcript message.
@@ -770,12 +560,7 @@ def render_msg(agent, text, *, trusted_html: bool = False):
                that are known-safe can pass trusted_html=True.
     """
     abbr, av_cls = AGENT_STYLE.get(agent, ("?", "av-system"))
-    name_color = {
-        "Judge": "#ff9f0a", "Prosecutor": "#ff453a",
-        "Defense": "#0a84ff", "Defense Counsel": "#0a84ff",
-        "Witness": "#30d158", "Foreperson": "#bf5af2", "Juror": "#5ac8fa",
-        "Fact Checker": "#ff6961", "Magistrate": "#ff9f0a", "System": "#48484a"
-    }.get(agent, "#86868b")
+    name_color = AGENT_NAME_COLOR.get(agent, "#86868b")
     # Sanitise unless the caller explicitly marks the content as trusted HTML
     safe_text = text if trusted_html else _html.escape(str(text))
     return f'''<div class="msg-row">
@@ -787,29 +572,12 @@ def render_msg(agent, text, *, trusted_html: bool = False):
 </div>'''
 
 # ─── File Parsing ─────────────────────────────────────────────
+from legalist.parser import extract_text as _extract_text
+
 def extract_text_from_file(uploaded_file) -> str:
     """Parse PDF, DOCX, or TXT and return plain text."""
-    name = uploaded_file.name.lower()
     raw = uploaded_file.read()
-    if name.endswith(".pdf"):
-        try:
-            from pypdf import PdfReader
-            reader = PdfReader(io.BytesIO(raw))
-            return "\n".join(page.extract_text() or "" for page in reader.pages)
-        except Exception as e:
-            return f"[PDF parse error: {e}]"
-    elif name.endswith(".docx"):
-        try:
-            import docx
-            doc = docx.Document(io.BytesIO(raw))
-            return "\n".join(p.text for p in doc.paragraphs)
-        except Exception as e:
-            return f"[DOCX parse error: {e}]"
-    else:
-        try:
-            return raw.decode("utf-8")
-        except Exception:
-            return raw.decode("latin-1", errors="replace")
+    return _extract_text(raw, uploaded_file.name)
 
 # ─── Session State ─────────────────────────────────────────────
 defaults = {

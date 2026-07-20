@@ -30,8 +30,25 @@ window.State = State;
 window.showToast = showToast;
 window.escapeHtml = escapeHtml;
 
+// Agent styles (populated at startup from /api/agent-styles)
+window.AGENT_STYLES = { styles: {}, colors: {} };
+
+// ── Fetch agent styles from canonical backend source ──
+async function loadAgentStyles() {
+    try {
+        const res = await fetch('/api/agent-styles');
+        if (res.ok) {
+            const data = await res.json();
+            window.AGENT_STYLES = data;
+        }
+    } catch (e) {
+        console.warn('Could not load agent styles, using defaults:', e);
+    }
+}
+
 // ── Bootstrap ──
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadAgentStyles();
     UI.initTabs();
     UI.initBottomTimeline();
     UI.initDrawers();

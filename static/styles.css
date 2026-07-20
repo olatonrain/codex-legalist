@@ -841,40 +841,40 @@ h4 {
     white-space: pre-wrap;
 }
 .av-judge {
-    background: rgba(243, 156, 18, 0.15);
-    color: #d68910;
+    background: rgba(255, 159, 10, 0.15);
+    color: #ff9f0a;
 }
 .av-prosecutor {
-    background: rgba(192, 57, 43, 0.15);
-    color: #c0392b;
+    background: rgba(255, 69, 58, 0.15);
+    color: #ff453a;
 }
 .av-defense {
-    background: rgba(39, 174, 96, 0.15);
-    color: #27ae60;
+    background: rgba(10, 132, 255, 0.15);
+    color: #0a84ff;
 }
 .av-witness {
-    background: rgba(243, 156, 18, 0.15);
-    color: #e67e22;
+    background: rgba(48, 209, 88, 0.15);
+    color: #30d158;
 }
 .av-magistrate {
-    background: rgba(211, 84, 0, 0.15);
-    color: #d35400;
+    background: rgba(255, 159, 10, 0.15);
+    color: #ff9f0a;
 }
 .av-foreperson {
-    background: rgba(142, 68, 173, 0.15);
-    color: #8e44ad;
+    background: rgba(191, 90, 242, 0.15);
+    color: #bf5af2;
 }
 .av-juror {
-    background: rgba(41, 128, 185, 0.15);
-    color: #2980b9;
+    background: rgba(90, 200, 250, 0.15);
+    color: #5ac8fa;
 }
 .av-checker {
-    background: rgba(22, 160, 133, 0.15);
-    color: #16a085;
+    background: rgba(255, 105, 97, 0.15);
+    color: #ff6961;
 }
 .av-system {
-    background: rgba(127, 140, 141, 0.15);
-    color: #7f8c8d;
+    background: rgba(72, 72, 74, 0.15);
+    color: #48484a;
 }
 
 /* Evidence Board */

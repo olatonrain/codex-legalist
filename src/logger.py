@@ -1,3 +1,4 @@
+"""Logging configuration — structured logging for server and agent operations."""
 import logging
 import sys
 

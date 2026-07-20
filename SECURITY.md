@@ -1,6 +1,6 @@
 # Security Policy
 
-This file covers security policies only. See [SAFETY.md](SAFETY.md) for data handling limits, deployment guardrails, rollback triggers, and human-in-the-loop checkpoints. Zero content overlap.
+This file covers security policies only. See [SAFETY.md](docs/SAFETY.md) for data handling limits, deployment guardrails, rollback triggers, and human-in-the-loop checkpoints. Zero content overlap.
 
 ## Reporting a Vulnerability
 

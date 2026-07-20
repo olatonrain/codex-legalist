@@ -1,7 +1,7 @@
 "use strict";
 // ── UI module — extracted from static/app.js ──
 
-import { State, $, $$, showToast, escapeHtml, sleep, formatDuration, classifyStance, extractExhibitLabel, isTrialConcluded, AGENT_ABBR, AGENT_COLOR, AV_CLASS, JX_DATA, safeJson, toggleTheme } from './state.js';
+import { State, $, $$, showToast, escapeHtml, sleep, formatDuration, classifyStance, extractExhibitLabel, isTrialConcluded, getAgentAbbr, getAgentColor, getAgentAvClass, JX_DATA, safeJson, toggleTheme } from './state.js';
 import { clearTranscript, addTranscriptEntry, addSystemMessage, streamLines, importTranscriptFromGraphState, handleEvidenceFromEntry, syncEvidenceFromState, exportTranscript } from './transcript.js';
 import { renderEvidenceBoard, renderObjectionHistory, renderClerkSummary, renderMotionRulings, renderDiscoverySummary } from './evidence.js';
 import { buildLiveDeliberationSnapshot, renderShadowJuryConversation, renderVerdictView, renderVerdictCharts, renderJuryGrid, renderDeliberationView, renderConsensusRows, renderDeliberationTranscript, renderCaseRecordSummary, renderMiniChart, requestInsights, renderInsightResults, initInsightButtons, toggleInsightExpand } from './jury.js';
@@ -606,11 +606,9 @@ function appendCaseText(text) {
 async function toggleVoiceRecording() {
   const btn = $("recordAudioBtn");
   const info = $("audioUploadInfo");
+
   if (!navigator.mediaDevices || !window.MediaRecorder) {
-    if (info) {
-      info.textContent = "Recording requires HTTPS or localhost. Use 'Attach File' or 'Upload Audio File' instead.";
-      info.style.color = "var(--prosecutor)";
-    }
+    if (info) { info.textContent = "Recording requires HTTPS or localhost. Use 'Attach File' or 'Upload Audio File' instead."; info.style.color = "var(--prosecutor)"; }
     return;
   }
 
@@ -624,9 +622,7 @@ async function toggleVoiceRecording() {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     State.audioChunks = [];
     State.mediaRecorder = new MediaRecorder(stream);
-    State.mediaRecorder.ondataavailable = event => {
-      if (event.data.size > 0) State.audioChunks.push(event.data);
-    };
+    State.mediaRecorder.ondataavailable = event => { if (event.data.size > 0) State.audioChunks.push(event.data); };
     State.mediaRecorder.onstop = async () => {
       stream.getTracks().forEach(track => track.stop());
       await transcribeRecordedAudio();
@@ -634,40 +630,32 @@ async function toggleVoiceRecording() {
     };
     State.mediaRecorder.start();
     if (btn) btn.innerHTML = '<i class="fas fa-stop"></i> Stop Recording';
-    if (info) {
-      info.textContent = "Recording what happened...";
-      info.style.color = "var(--defense)";
-    }
+    if (info) { info.textContent = "Recording what happened..."; info.style.color = "var(--defense)"; }
     showToast("Recording started — speak your case facts", "info", 2500);
   } catch (err) {
-    if (info) {
-      info.textContent = "Microphone permission was denied or unavailable.";
-      info.style.color = "var(--prosecutor)";
-    }
+    if (info) { info.textContent = "Microphone permission was denied or unavailable."; info.style.color = "var(--prosecutor)"; }
   }
 }
 
 async function transcribeRecordedAudio() {
   const info = $("audioUploadInfo");
+  try {
+    const result = await recordAndUploadAudio();
+    appendCaseText(result.text);
+    if (info) { info.textContent = `Recorded and transcribed ${result.char_count} chars`; info.style.color = "var(--witness)"; }
+  } catch (err) {
+    if (info) { info.textContent = err.message; info.style.color = "var(--prosecutor)"; }
+  }
+}
+
+async function recordAndUploadAudio(filename = "recording.webm") {
   const blob = new Blob(State.audioChunks, { type: State.audioChunks[0]?.type || "audio/webm" });
   const fd = new FormData();
-  fd.append("file", blob, "recorded-case-facts.webm");
-  if (info) info.textContent = "Transcribing recording...";
-  try {
-    const res = await fetch("/api/upload_audio", { method: "POST", body: fd });
-    const data = await safeJson(res);
-    if (!res.ok) throw new Error(data.detail || "Transcription failed");
-    appendCaseText(data.text);
-    if (info) {
-      info.textContent = `Recorded and transcribed ${data.char_count} chars`;
-      info.style.color = "var(--witness)";
-    }
-  } catch (err) {
-    if (info) {
-      info.textContent = err.message;
-      info.style.color = "var(--prosecutor)";
-    }
-  }
+  fd.append("file", blob, filename);
+  const res = await fetch("/api/upload_audio", { method: "POST", body: fd });
+  const data = await safeJson(res);
+  if (!res.ok) throw new Error(data.detail || "Transcription failed");
+  return { text: data.text, char_count: data.char_count, filename: data.filename };
 }
 
 // ── Case input tabs ───────────────────────────────────────────────────────────
@@ -904,10 +892,7 @@ function attachMissingItemsAudioHandlers() {
 
 async function handleAudioRecording(btn, statusEl, textarea) {
   if (!navigator.mediaDevices || !window.MediaRecorder) {
-    if (statusEl) {
-      statusEl.textContent = "Recording requires HTTPS or localhost";
-      statusEl.style.color = "var(--prosecutor)";
-    }
+    if (statusEl) { statusEl.textContent = "Recording requires HTTPS or localhost"; statusEl.style.color = "var(--prosecutor)"; }
     return;
   }
 
@@ -922,57 +907,25 @@ async function handleAudioRecording(btn, statusEl, textarea) {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     State.audioChunks = [];
     State.mediaRecorder = new MediaRecorder(stream);
-    
-    State.mediaRecorder.ondataavailable = (e) => {
-      State.audioChunks.push(e.data);
-    };
-    
+    State.mediaRecorder.ondataavailable = (e) => { State.audioChunks.push(e.data); };
     State.mediaRecorder.onstop = async () => {
-      const audioBlob = new Blob(State.audioChunks, { type: "audio/webm" });
-      const fd = new FormData();
-      fd.append("file", audioBlob, "recording.webm");
-      
-      try {
-        const res = await fetch("/api/upload_audio", { method: "POST", body: fd });
-        const data = await safeJson(res);
-        if (res.ok) {
-          if (textarea) {
-            textarea.value = textarea.value.trim() 
-              ? textarea.value.trim() + "\n" + data.text 
-              : data.text;
-          }
-          if (statusEl) {
-            statusEl.textContent = `Transcribed ${data.char_count} chars`;
-            statusEl.style.color = "var(--witness)";
-          }
-        } else {
-          if (statusEl) {
-            statusEl.textContent = "Transcription failed";
-            statusEl.style.color = "var(--prosecutor)";
-          }
-        }
-      } catch (err) {
-        if (statusEl) {
-          statusEl.textContent = "Network error";
-          statusEl.style.color = "var(--prosecutor)";
-        }
-      }
-      
       stream.getTracks().forEach(t => t.stop());
+      try {
+        const result = await recordAndUploadAudio();
+        if (textarea) {
+          textarea.value = textarea.value.trim() ? textarea.value.trim() + "\n" + result.text : result.text;
+        }
+        if (statusEl) { statusEl.textContent = `Transcribed ${result.char_count} chars`; statusEl.style.color = "var(--witness)"; }
+      } catch (err) {
+        if (statusEl) { statusEl.textContent = err.message; statusEl.style.color = "var(--prosecutor)"; }
+      }
       btn.innerHTML = '<i class="fas fa-microphone"></i> Record';
     };
-    
     State.mediaRecorder.start();
     btn.innerHTML = '<i class="fas fa-stop"></i> Stop';
-    if (statusEl) {
-      statusEl.textContent = "Recording...";
-      statusEl.style.color = "var(--prosecutor)";
-    }
+    if (statusEl) { statusEl.textContent = "Recording..."; statusEl.style.color = "var(--prosecutor)"; }
   } catch (err) {
-    if (statusEl) {
-      statusEl.textContent = "Microphone access denied";
-      statusEl.style.color = "var(--prosecutor)";
-    }
+    if (statusEl) { statusEl.textContent = "Microphone access denied"; statusEl.style.color = "var(--prosecutor)"; }
   }
 }
 
@@ -1257,7 +1210,20 @@ async function runBenchmark(useMock) {
     use_mock: String(useMock),
   });
   if (hasCompletedTrial()) {
-    params.set("trial_context", JSON.stringify(State.graphState));
+    const gs = State.graphState;
+    const trimCtx = {
+      case_description: (gs.case_description || "").slice(0, 2000),
+      main_verdict: gs.main_verdict || null,
+      admitted_evidence: (gs.admitted_evidence || []).slice(-10),
+      transcript: (gs.transcript || []).slice(-20).map(m => {
+        if (typeof m === "object" && m !== null) {
+          return { name: m.name || m.agent || "Speaker", content: (m.content || m.text || "").slice(0, 150) };
+        }
+        return { name: "Speaker", content: String(m).slice(0, 150) };
+      }),
+      trial_log: gs.trial_log ? { closing_arguments: gs.trial_log.closing_arguments || "" } : {},
+    };
+    params.set("trial_context", JSON.stringify(trimCtx));
   }
 
   const url = `/api/benchmark/run-stream?${params}`;
@@ -1658,13 +1624,13 @@ function showHumanInputDialog(question) {
   overlay.id = "humanQuestionOverlay";
   overlay.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;";
   
-  const agentColor = AGENT_COLOR[question.agent] || "var(--gold)";
+  const agentColor = getAgentColor(question.agent) || "var(--gold)";
   
   overlay.innerHTML = `
     <div style="background:var(--card);border-radius:16px;padding:24px;max-width:500px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
         <div style="width:40px;height:40px;border-radius:50%;background:${agentColor};display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px;">
-          ${(AGENT_ABBR[question.agent] || "?").substring(0, 2)}
+          ${(getAgentAbbr(question.agent) || "?").substring(0, 2)}
         </div>
         <div>
           <div style="font-size:14px;font-weight:700;color:var(--text);">${escapeHtml(question.agent)}</div>
@@ -1768,6 +1734,7 @@ const STEP_LABELS = {
   "witness_redirect":  "Witness Redirect & Impeachment",
   "rebuttal":          "Rebuttal Evidence",
   "closing":           "Closing Arguments",
+  "no_case":           "No-Case Submission",
   "jury_instructions": "Jury Instructions",
   "jury_deliberation": "Jury Deliberation",
   "shadow_jury":       "Shadow Jury Analysis",
@@ -1775,7 +1742,7 @@ const STEP_LABELS = {
 };
 
 function updateLiveProgress() {
-  const STEPS = ["discovery", "motions", "opening", "evidence", "witness_direct", "witness_cross", "witness_redirect", "rebuttal", "closing", "jury_instructions", "jury_deliberation", "shadow_jury", "sentencing"];
+  const STEPS = ["discovery", "motions", "opening", "evidence", "witness_direct", "witness_cross", "witness_redirect", "rebuttal", "closing", "no_case", "jury_instructions", "jury_deliberation", "shadow_jury", "sentencing"];
   const idx   = STEPS.indexOf(State.liveStep);
   const label = STEP_LABELS[State.liveStep] || State.liveStep;
   const pct   = idx >= 0 ? Math.round(((idx + 1) / STEPS.length) * 100) : 0;
@@ -2020,8 +1987,8 @@ function renderAgentRoster(speakingAgent = null) {
   ];
 
   container.innerHTML = agentsToRender.map(agent => {
-    const color = AGENT_COLOR[agent.key] || "#86868b";
-    const abbr = AGENT_ABBR[agent.key] || agent.name.substring(0, 2).toUpperCase();
+    const color = getAgentColor(agent.key) || "#86868b";
+    const abbr = getAgentAbbr(agent.key) || agent.name.substring(0, 2).toUpperCase();
     const isSpeaking = activeAgent === agent.key || activeAgent === agent.name || (activeAgent === "Defense Counsel" && agent.key === "Defense");
     const isVoting = /Juror|Foreperson/.test(agent.key) && /deliberation/i.test(State.transcriptEntries.at(-1)?.phase || "");
     const statusClass = isSpeaking ? "st-speaking" : isVoting ? "st-voting" : "st-idle";

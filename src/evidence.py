@@ -1,3 +1,4 @@
+"""Evidence submission and ruling nodes — exhibits, objections, judge rulings."""
 import threading
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage

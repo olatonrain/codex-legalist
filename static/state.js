@@ -47,52 +47,69 @@ const State = {
   metricsTimer:   null,
 };
 
-// ── Agent colour map (matches CSS vars) ──────────────────────────────────────
+// ── Agent styling — sourced from backend /api/agent-styles (with hardcoded fallbacks) ─────
 
-const AGENT_COLOR = {
-  "Judge":        "#ff9f0a",
-  "Prosecutor":   "#ff453a",
-  "Defense":      "#0a84ff",
-  "Defense Counsel": "#0a84ff",
-  "Witness":      "#30d158",
-  "Foreperson":   "#bf5af2",
-  "Juror":        "#5ac8fa",
-  "Fact Checker": "#ff6961",
-  "Magistrate":   "#ff9f0a",
-  "Clerk":        "#8e44ad",
-  "Bailiff":      "#c9a84c",
-  "System":       "#48484a",
+// Fallback defaults (kept in sync with legalist/data.py)
+const _FALLBACK_AGENT_STYLE = {
+    "Bailiff":      { abbr: "BL",  avClass: "av-system",   color: "#c9a84c" },
+    "Judge":        { abbr: "JD",  avClass: "av-judge",    color: "#ff9f0a" },
+    "Prosecutor":   { abbr: "PR",  avClass: "av-prosecutor", color: "#ff453a" },
+    "Defense":      { abbr: "DF",  avClass: "av-defense",  color: "#0a84ff" },
+    "Defense Counsel": { abbr: "DF", avClass: "av-defense", color: "#0a84ff" },
+    "Witness":      { abbr: "WS",  avClass: "av-witness",  color: "#30d158" },
+    "Magistrate":   { abbr: "MG",  avClass: "av-magistrate", color: "#ff9f0a" },
+    "Foreperson":   { abbr: "FP",  avClass: "av-foreperson", color: "#bf5af2" },
+    "Juror":        { abbr: "JR",  avClass: "av-juror",    color: "#5ac8fa" },
+    "Fact Checker": { abbr: "FC",  avClass: "av-checker",  color: "#ff6961" },
+    "Clerk":        { abbr: "CL",  avClass: "av-system",   color: "#8e44ad" },
+    "System":       { abbr: "—",   avClass: "av-system",   color: "#48484a" },
 };
 
-const AGENT_ABBR = {
-  "Bailiff":      "BL",
-  "Judge":        "JD",
-  "Prosecutor":   "PR",
-  "Defense":      "DF",
-  "Defense Counsel": "DF",
-  "Witness":      "WS",
-  "Magistrate":   "MG",
-  "Foreperson":   "FP",
-  "Juror":        "JR",
-  "Fact Checker": "FC",
-  "Clerk":        "CL",
-  "System":       "—",
-};
+function _getAgentStyles() {
+    // Prefer backend-provided styles (loaded by app.js on startup)
+    const backend = window.AGENT_STYLES || {};
+    if (backend.styles && Object.keys(backend.styles).length) {
+        // Build avClasses/abbrs from backend styles if missing
+        const avClasses = backend.avClasses || {};
+        const abbrs = backend.abbrs || {};
+        if (!backend.avClasses || !backend.abbrs) {
+            for (const [agent, cfg] of Object.entries(backend.styles)) {
+                if (!avClasses[agent]) avClasses[agent] = cfg.avClass;
+                if (!abbrs[agent]) abbrs[agent] = cfg.abbr;
+            }
+            backend.avClasses = avClasses;
+            backend.abbrs = abbrs;
+        }
+        return backend;
+    }
+    // Build from fallback
+    const styles = {};
+    const colors = {};
+    const avClasses = {};
+    const abbrs = {};
+    for (const [agent, cfg] of Object.entries(_FALLBACK_AGENT_STYLE)) {
+        styles[agent] = { abbr: cfg.abbr, avClass: cfg.avClass };
+        colors[agent] = cfg.color;
+        avClasses[agent] = cfg.avClass;
+        abbrs[agent] = cfg.abbr;
+    }
+    return { styles, colors, avClasses, abbrs };
+}
 
-const AV_CLASS = {
-  "Bailiff":      "av-system",
-  "Judge":        "av-judge",
-  "Prosecutor":   "av-prosecutor",
-  "Defense":      "av-defense",
-  "Defense Counsel": "av-defense",
-  "Witness":      "av-witness",
-  "Magistrate":   "av-magistrate",
-  "Foreperson":   "av-foreperson",
-  "Juror":        "av-juror",
-  "Fact Checker": "av-checker",
-  "Clerk":        "av-system",
-  "System":       "av-system",
-};
+// Lazy getters — resolve at call time so backend styles are picked up after load
+function getAgentStyle(agent) {
+    const s = _getAgentStyles().styles[agent];
+    return s || { abbr: "?", avClass: "av-system" };
+}
+function getAgentColor(agent) {
+    return _getAgentStyles().colors[agent] || "#86868b";
+}
+function getAgentAbbr(agent) {
+    return _getAgentStyles().abbrs[agent] || "?";
+}
+function getAgentAvClass(agent) {
+    return _getAgentStyles().avClasses[agent] || "av-system";
+}
 
 // ── DOM references ────────────────────────────────────────────────────────────
 
@@ -234,11 +251,13 @@ export {
     $,
     $$,
     State,
-    AGENT_ABBR,
-    AGENT_COLOR,
-    AV_CLASS,
     JX_DATA,
     DOCKET_KEY,
+
+    getAgentStyle,
+    getAgentColor,
+    getAgentAbbr,
+    getAgentAvClass,
 
     showToast,
     sleep,

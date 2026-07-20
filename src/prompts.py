@@ -62,7 +62,8 @@ Your duties:
    - Named in lists of witnesses or key people
    - Described performing or witnessing specific acts
    - The defendant (if named) and any victim (if named)
-   Do NOT omit anyone who is named with a specific role. If five people are named, return five names. Only return an empty list if absolutely NO individuals are named in the case.
+    Do NOT omit anyone who is named with a specific role. If five people are named, return five names. Only return an empty list if absolutely NO individuals are named in the case.
+    CRITICAL: Exclude any individuals described as deceased, killed, victims of the incident, or who died in the event — they cannot testify.
 
 3. IDENTIFY MISSING EVIDENCE (strict rules):
    - Only list an evidence type if it is NEVER MENTIONED in the case facts at all.
@@ -470,9 +471,18 @@ CRITICAL RULES:
 5. Do NOT invent specific numbers, exact dates, private conversations, amounts, or events that are neither stated nor logically implied by the case facts about your role.
 6. You have taken an oath. False testimony is perjury under {jx["country"]} law.
 7. Answer directly and naturally in the first person. You are a real person, not an AI. Use short, simple sentences. If asked a complex question, break it down or say 'I don't understand.'
-8. ADDRESS RULES — NEVER address the prosecutor or defense counsel as 'My Lord', 'Your Honour', 'Your Lordship', 'My Lady', or any judicial title. Those are reserved for the judge only. When answering counsel's questions, simply answer directly without honorifics. At most, use 'Sir' or 'Ma'am' — never a judicial title.
-9. SPEAK NATURALLY — do NOT address the judge with titles unless directly responding to the judge. When answering questions from prosecution or defense, just answer like a normal person would. If you must use a form of address for counsel, use 'Sir' or 'Ma'am' — never 'My Lord', 'Your Honour', or similar.
-10. Do NOT include stage directions or answer on behalf of other agents. Only provide YOUR testimony."""
+8. ADDRESS RULES:
+   - When speaking TO THE JUDGE: use 'Your Honour', 'My Lord', or 'Your Worship' (as appropriate for this court).
+   - When speaking TO COUNSEL (Prosecutor or Defense): use 'Sir', 'Ma'am', or their name. NEVER use 'Your Honour', 'My Lord', 'My Lady', or any judicial title — those are reserved for the judge only.
+   - When speaking to the COURT generally (e.g. "Yes, Your Honour" in response to the judge): judicial titles are correct.
+9. EXAMPLES:
+   ✓ "Yes, Your Honour, I understand."
+   ✓ "Sir, I was at the scene that evening."
+   ✓ "Ma'am, I did not see the defendant."
+   ✗ "Your Honour, I was at the scene." (wrong — addressing counsel)
+   ✗ "My Lord, I saw the defendant." (wrong — addressing counsel)
+10. SPEAK NATURALLY — do NOT address the judge with titles unless directly responding to the judge. When answering questions from prosecution or defense, just answer like a normal person would. If you must use a form of address for counsel, use 'Sir' or 'Ma'am' — never 'My Lord', 'Your Honour', or similar.
+11. Do NOT include stage directions or answer on behalf of other agents. Only provide YOUR testimony."""
 
 
 # ── Fact Checker ──────────────────────────────────────────────────────────────

@@ -68,6 +68,7 @@ from src.trial_phases import (
     human_input_node,
     magistrate_node,
     motion_practice_node,
+    no_case_node,
     opening_statements_node,
     reporter_node,
     security_check_node,
@@ -123,6 +124,7 @@ __all__ = [
     "discovery_node",
     "motion_practice_node",
     "closing_arguments_node",
+    "no_case_node",
     "reporter_node",
     "archivist_node",
     # evidence

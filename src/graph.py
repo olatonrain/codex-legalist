@@ -1,3 +1,4 @@
+"""LangGraph StateGraph construction — ties all trial phase nodes together."""
 from typing import Literal
 
 from langgraph.graph import END, StateGraph
@@ -17,6 +18,7 @@ from src.trial_phases import (
     human_input_node,
     magistrate_node,
     motion_practice_node,
+    no_case_node,
     opening_statements_node,
     reporter_node,
     security_check_node,
@@ -39,6 +41,7 @@ workflow.add_node("witness_cross", witness_cross)
 workflow.add_node("witness_redirect", witness_redirect)
 workflow.add_node("rebuttal_evidence", rebuttal_evidence_node)
 workflow.add_node("closing_arguments", closing_arguments_node)
+workflow.add_node("no_case", no_case_node)
 workflow.add_node("jury_instructions", jury_instructions_node)
 workflow.add_node("jury_deliberation", jury_deliberation_node)
 workflow.add_node("shadow_jury", shadow_jury_node)
@@ -50,6 +53,7 @@ workflow.add_node("archivist", archivist_node)
 
 
 def check_security(state: TrialState) -> Literal["magistrate", "archivist"]:
+    """Route to magistrate if security passes, archivist if errors exist."""
     if state.get("errors"):
         # If any errors exist, jump to end (security breach or fatal failure)
         return "archivist"
@@ -57,24 +61,33 @@ def check_security(state: TrialState) -> Literal["magistrate", "archivist"]:
 
 
 def check_has_witnesses(state: TrialState) -> Literal["witness_direct", "rebuttal_evidence"]:
+    """Route to witness examination if witnesses remain, else skip to rebuttal."""
     if len(state.get("witness_queue", [])) > 0 or state.get("current_witness"):
         return "witness_direct"
     return "rebuttal_evidence"
 
 
-def check_closing(state: TrialState) -> Literal["jury_instructions", "shadow_jury"]:
+def check_closing(state: TrialState) -> Literal["no_case"]:
+    """After closing arguments, always proceed to no-case submission."""
+    return "no_case"
+
+
+def check_no_case(state: TrialState) -> Literal["jury_instructions", "shadow_jury"]:
+    """Route to jury instructions if no-case overruled, or shadow jury if acquitted."""
     if state.get("main_verdict"):
         return "shadow_jury"
     return "jury_instructions"
 
 
 def check_verdict(state: TrialState) -> Literal["jury_deliberation", "shadow_jury"]:
+    """Route back to deliberation if no verdict after 3+ rounds, or to shadow jury."""
     if state.get("main_verdict") or state.get("deliberation_rounds", 0) >= 3:
         return "shadow_jury"
     return "jury_deliberation"
 
 
 def check_sentencing(state: TrialState) -> Literal["sentencing", "reporter"]:
+    """Route to sentencing if guilty/liable, or skip to reporter if acquitted."""
     if state.get("main_verdict") in ("Guilty", "Liable"):
         return "sentencing"
     return "reporter"
@@ -108,7 +121,11 @@ workflow.add_conditional_edges(
 workflow.add_edge("rebuttal_evidence", "closing_arguments")
 
 workflow.add_conditional_edges(
-    "closing_arguments", check_closing, {"jury_instructions": "jury_instructions", "shadow_jury": "shadow_jury"}
+    "closing_arguments", check_closing, {"no_case": "no_case"}
+)
+
+workflow.add_conditional_edges(
+    "no_case", check_no_case, {"jury_instructions": "jury_instructions", "shadow_jury": "shadow_jury"}
 )
 
 workflow.add_edge("jury_instructions", "jury_deliberation")

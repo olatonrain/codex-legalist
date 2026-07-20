@@ -1,3 +1,4 @@
+"""Jury deliberation and verdict nodes — juror discussion, voting, unanimous verdict."""
 import random
 import re
 

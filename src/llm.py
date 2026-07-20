@@ -1,3 +1,4 @@
+"""LLM client factory — creates Qwen chat and structured-output model instances."""
 import logging
 import os
 import time

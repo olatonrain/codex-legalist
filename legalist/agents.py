@@ -181,6 +181,7 @@ _LIVE_STEPS = [
     "witness_redirect",
     "rebuttal",
     "closing",
+    "no_case",
     "jury_instructions",
     "jury_deliberation",
     "shadow_jury",
@@ -198,6 +199,7 @@ _STEP_LABELS = {
     "witness_redirect": "Witness Redirect & Impeachment",
     "rebuttal": "Rebuttal Evidence",
     "closing": "Closing Arguments",
+    "no_case": "No-Case Submission",
     "jury_instructions": "Jury Instructions",
     "jury_deliberation": "Jury Deliberation",
     "shadow_jury": "Shadow Jury Analysis",
@@ -276,6 +278,7 @@ def run_trial_step(live_step: str, graph_state: dict) -> tuple[list[dict], dict,
         jury_deliberation_node,
         jury_instructions_node,
         motion_practice_node,
+        no_case_node,
         opening_statements_node,
         rebuttal_evidence_node,
         reporter_node,
@@ -296,6 +299,7 @@ def run_trial_step(live_step: str, graph_state: dict) -> tuple[list[dict], dict,
         "witness_redirect": witness_redirect,
         "rebuttal": rebuttal_evidence_node,
         "closing": closing_arguments_node,
+        "no_case": no_case_node,
         "jury_instructions": jury_instructions_node,
         "jury_deliberation": jury_deliberation_node,
         "shadow_jury": shadow_jury_node,
@@ -401,6 +405,8 @@ def _next_step_after(live_step: str, graph_state: dict) -> str:
     elif live_step == "rebuttal":
         return "closing"
     elif live_step == "closing":
+        return "no_case"
+    elif live_step == "no_case":
         return "shadow_jury" if verdict else "jury_instructions"
     elif live_step == "jury_instructions":
         return "jury_deliberation"

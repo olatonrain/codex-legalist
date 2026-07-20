@@ -51,8 +51,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from legalist.agents import generate_dramatic_opening, run_trial_step
-from legalist.data import DEMO_CASES
+from legalist.data import AGENT_NAME_COLOR, AGENT_STYLE, DEMO_CASES
 from legalist.parser import extract_text
+from src.benchmark_helpers import build_benchmark_aggregate, safe_avg
 from src.config import COUNTRY_LIST, DEFAULT_COUNTRY, JURISDICTIONS
 from src.insight import _compute_cache_key
 from src.insight import generate_one as generate_insight
@@ -141,6 +142,16 @@ def serve_ui():
 @app.get("/api/health")
 def health():
     return {"status": "ok", "version": "1.0.0"}
+
+
+# ── Agent Styles ────────────────────────────────────────────────────────────────
+@app.get("/api/agent-styles")
+def get_agent_styles():
+    """Return canonical agent display configuration (abbreviations, CSS classes, colors)."""
+    return {
+        "styles": {k: {"abbr": v[0], "avClass": v[1]} for k, v in AGENT_STYLE.items()},
+        "colors": AGENT_NAME_COLOR,
+    }
 
 
 # ── Jurisdiction list ─────────────────────────────────────────────────────────
@@ -978,32 +989,13 @@ def run_benchmark(req: BenchmarkRequest):
         if not multi_results and errors:
             raise HTTPException(500, f"Benchmark failed: {errors[0]}")
 
-        def safe_avg(results, key, default=0):
-            if not results:
-                return default
-            return sum(r.get(key, default) for r in results) / len(results)
-
-        return {
-            "raw_llm": {
-                "results": raw_results,
-                "avg_hallucinations": safe_avg(raw_results, "hallucinations"),
-                "avg_evidence_citations": safe_avg(raw_results, "evidence_citations"),
-            },
-            "single_agent": {
-                "results": single_results,
-                "avg_hallucinations": safe_avg(single_results, "hallucinations"),
-                "avg_evidence_citations": safe_avg(single_results, "evidence_citations"),
-            },
-            "multi_agent": {
-                "results": multi_results,
-                "avg_hallucinations": safe_avg(multi_results, "hallucinations"),
-                "avg_evidence_citations": safe_avg(multi_results, "evidence_citations"),
-                "avg_shadow_jury_consensus": safe_avg(multi_results, "shadow_jury_consensus"),
-            },
-            "completed_runs": len(multi_results),
-            "total_runs": req.num_runs,
-            "errors": errors if errors else None,
-        }
+        return build_benchmark_aggregate(
+            raw_results=raw_results,
+            single_results=single_results,
+            multi_results=multi_results,
+            num_runs=req.num_runs,
+            errors=errors,
+        )
     except HTTPException:
         raise
     except Exception as exc:
@@ -1069,32 +1061,13 @@ def run_benchmark_stream(
                 yield f"event: multi_result\ndata: {_json_mod.dumps(err)}\n\n"
 
         # Build final aggregate (same shape as POST /api/benchmark/run)
-        def safe_avg(results, key, default=0):
-            if not results:
-                return default
-            return sum(r.get(key, default) for r in results) / len(results)
-
-        aggregate = {
-            "raw_llm": {
-                "results": raw_results,
-                "avg_hallucinations": safe_avg(raw_results, "hallucinations"),
-                "avg_evidence_citations": safe_avg(raw_results, "evidence_citations"),
-            },
-            "single_agent": {
-                "results": single_results,
-                "avg_hallucinations": safe_avg(single_results, "hallucinations"),
-                "avg_evidence_citations": safe_avg(single_results, "evidence_citations"),
-            },
-            "multi_agent": {
-                "results": multi_results,
-                "avg_hallucinations": safe_avg(multi_results, "hallucinations"),
-                "avg_evidence_citations": safe_avg(multi_results, "evidence_citations"),
-                "avg_shadow_jury_consensus": safe_avg(multi_results, "shadow_jury_consensus"),
-            },
-            "completed_runs": len(multi_results),
-            "total_runs": num_runs,
-            "errors": errors if errors else None,
-        }
+        aggregate = build_benchmark_aggregate(
+            raw_results=raw_results,
+            single_results=single_results,
+            multi_results=multi_results,
+            num_runs=num_runs,
+            errors=errors,
+        )
         yield f"event: complete\ndata: {_json_mod.dumps(aggregate)}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")

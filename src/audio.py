@@ -1,3 +1,4 @@
+"""Audio transcription — speech-to-text via Qwen Omni / Qwen Audio models."""
 import base64
 import os
 from typing import Optional

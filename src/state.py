@@ -1,3 +1,4 @@
+"""Trial state schema — TypedDict defining the LangGraph state graph shape."""
 from typing import Any, Dict, List, Optional, TypedDict
 
 from langchain_core.messages import BaseMessage
@@ -19,6 +20,19 @@ def create_initial_state(
     jury_count: int = 12,
     **overrides,
 ) -> dict:
+    """Build a fresh TrialState dict with defaults for a new trial.
+
+    Args:
+        case_description: Plain-text facts describing the case.
+        country: Jurisdiction country name.
+        case_type: "Criminal" or "Civil".
+        shadow_jury_count: Number of shadow juries to run (5-50).
+        jury_count: Number of main-jury panelists (6-15).
+        **overrides: Any additional state keys to set.
+
+    Returns:
+        A TrialState-compatible dict ready for the LangGraph.
+    """
     state = {
         "case_description": case_description,
         "transcript": [],

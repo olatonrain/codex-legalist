@@ -19,64 +19,68 @@ After running `./deploy.sh`, open [http://localhost:8000](http://localhost:8000)
 | Method | Endpoint                    | Description                                           |
 | ------ | --------------------------- | ----------------------------------------------------- |
 | `GET`  | `/api/health`               | Health check                                          |
+| `GET`  | `/api/agent-styles`         | Agent display config (colors, abbreviations, CSS)     |
 | `GET`  | `/api/jurisdictions`        | List supported countries and legal parameters         |
 | `POST` | `/api/demo`                 | Load a demo case, returns opening sequence            |
+| `POST` | `/api/trial/magistrate`     | Run magistrate clarifying-question node               |
 | `POST` | `/api/trial/start`          | Start a live LLM trial, returns opening sequence      |
 | `POST` | `/api/trial/step`           | Run one phase step, returns new transcript entries    |
-| `POST` | `/api/trial/magistrate`     | Run magistrate clarifying-question node               |
 | `POST` | `/api/trial/human_question` | Agent submits a question to the human                 |
 | `POST` | `/api/trial/human_answer`   | Human submits an answer to an agent                   |
+| `POST` | `/api/trial/save`           | Save current trial state                              |
+| `GET`  | `/api/trial/saves`          | List saved trials                                     |
+| `GET`  | `/api/trial/load/{save_id}` | Load a saved trial                                    |
+| `DELETE`| `/api/trial/save/{save_id}` | Delete a saved trial                                  |
 | `POST` | `/api/upload`               | Parse an uploaded case file (PDF/DOCX/TXT, max 10 MB) |
 | `POST` | `/api/upload_audio`         | Transcribe an uploaded audio file (max 10 MB)         |
 | `POST` | `/api/benchmark/run`        | Run benchmark comparison                              |
 | `GET`  | `/api/benchmark/run-stream` | Run benchmark with SSE streaming progress             |
 | `POST` | `/api/trial/insight`        | Generate counsel insights from a completed trial      |
-| `GET`  | `/api/trial/transcript`     | Export transcript (JSON/Markdown/TXT)                 |
 
 ---
 
 ## Demo Cases
 
-Three built-in demo cases are available. Use the `/api/demo` endpoint with the `demo_key` field:
+Three built-in demo cases are available. Use the `/api/demo` endpoint with the `demo_key` field, or click the demo buttons in the web UI:
 
-### State v. Marcus Webb — Grand Theft Auto (`theft`)
+### State v. Dmitri Volkov — Ransomware Attack on St. Jude's Hospital (`ransomware`)
 
 ```json
 {
-  "demo_key": "theft",
+  "demo_key": "ransomware",
   "country": "United States",
   "case_type": "Criminal",
   "shadow_juries": 20
 }
 ```
 
-A criminal case involving a stolen Tesla. The prosecution relies on CCTV footage, the defence presents an alibi witness. Tests circumstantial evidence and witness credibility.
+A criminal case involving a ransomware attack on a hospital. The prosecution relies on SSH key forensics, Bitcoin exchange KYC records, and VPN logs. The defence presents a Berlin conference alibi, a CVE credential-theft vulnerability, and challenges the circumstantial chain.
 
-### Nexus Corp. v. Aether Labs — NDA Breach (`contract`)
+### Coastal Protection Agency v. Meridian Oil — Toxic Spill Cover-Up (`spill`)
 
 ```json
 {
-  "demo_key": "contract",
+  "demo_key": "spill",
   "country": "United States",
   "case_type": "Civil",
   "shadow_juries": 20
 }
 ```
 
-A civil case alleging breach of a non-disclosure agreement. Features competing expert witnesses (materials scientists), documentary evidence, and a damages phase.
+A civil environmental liability case. Internal emails prove Meridian knew about severe pipeline corrosion but deferred repair. Features whistleblower witness, satellite imagery evidence, and a damages phase.
 
-### State v. Emilia Vance — Double Homicide by Arson (`vance`)
+### State v. Dr. Sarah Blake — Involuntary Manslaughter by Clinical Trial Misconduct (`clinical`)
 
 ```json
 {
-  "demo_key": "vance",
+  "demo_key": "clinical",
   "country": "United States",
   "case_type": "Criminal",
   "shadow_juries": 20
 }
 ```
 
-A criminal arson and homicide case. Tests multiple evidence types: accelerant forensics, cell tower data, eyewitness testimony with impeachment (the eyewitness is a convicted perjurer), and a defence expert proposing an alternative electrical-fire theory.
+A criminal case alleging involuntary manslaughter from an unauthorized clinical trial. Dr. Blake administered an experimental drug at 2.5x the safe dose without IRB approval. Forensic document analysis shows the consent form was backdated. Tests the boundary between clinical discretion and criminal recklessness.
 
 ---
 

@@ -1,7 +1,7 @@
 "use strict";
 // ── EVIDENCE module — extracted from static/app.js ──
 
-import { State, $, $$, showToast, escapeHtml, sleep, formatDuration, classifyStance, extractExhibitLabel, isTrialConcluded, AGENT_ABBR, AGENT_COLOR, AV_CLASS, JX_DATA, safeJson, toggleTheme } from './state.js';
+import { State, $, $$, showToast, escapeHtml, sleep, formatDuration, classifyStance, extractExhibitLabel, isTrialConcluded, getAgentAbbr, getAgentColor, getAgentAvClass, JX_DATA, safeJson, toggleTheme } from './state.js';
 
 function renderEvidenceBoard() {
   const grid = $("evidenceGrid");

@@ -1,7 +1,7 @@
 "use strict";
 // ── TRANSCRIPT module — extracted from static/app.js ──
 
-import { State, $, $$, showToast, escapeHtml, sleep, formatDuration, classifyStance, extractExhibitLabel, isTrialConcluded, AGENT_ABBR, AGENT_COLOR, AV_CLASS, JX_DATA, safeJson, toggleTheme } from './state.js';
+import { State, $, $$, showToast, escapeHtml, sleep, formatDuration, classifyStance, extractExhibitLabel, isTrialConcluded, getAgentAbbr, getAgentColor, getAgentAvClass, JX_DATA, safeJson, toggleTheme } from './state.js';
 import { renderEvidenceBoard, renderObjectionHistory } from './evidence.js';
 import { renderAgentRoster, updateMetricsDisplay } from './ui.js';
 
@@ -63,9 +63,9 @@ function clearTranscript() {
 }
 
 function addTranscriptEntry(agent, text, phase) {
-  const color   = AGENT_COLOR[agent]  || "#86868b";
-  const abbr    = AGENT_ABBR[agent]   || "?";
-  const avClass = AV_CLASS[agent]     || "av-system";
+  const color   = getAgentColor(agent)  || "#86868b";
+  const abbr    = getAgentAbbr(agent)   || "?";
+  const avClass = getAgentAvClass(agent) || "av-system";
   const now     = new Date();
   const time    = now.toTimeString().slice(0, 5);
 

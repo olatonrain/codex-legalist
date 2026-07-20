@@ -97,13 +97,17 @@ class TestPhaseTransitionRouting:
         from legalist.agents import _next_step_after
         assert _next_step_after("rebuttal", self.get_state()) == "closing"
 
-    def test_closing_to_jury_instructions_no_verdict(self):
+    def test_closing_to_no_case(self):
         from legalist.agents import _next_step_after
-        assert _next_step_after("closing", self.get_state()) == "jury_instructions"
+        assert _next_step_after("closing", self.get_state()) == "no_case"
 
-    def test_closing_to_shadow_jury_with_verdict(self):
+    def test_no_case_to_jury_instructions_no_verdict(self):
         from legalist.agents import _next_step_after
-        assert _next_step_after("closing", self.get_state(verdict="Guilty")) == "shadow_jury"
+        assert _next_step_after("no_case", self.get_state()) == "jury_instructions"
+
+    def test_no_case_to_shadow_jury_with_verdict(self):
+        from legalist.agents import _next_step_after
+        assert _next_step_after("no_case", self.get_state(verdict="Guilty")) == "shadow_jury"
 
     def test_jury_instructions_to_deliberation(self):
         from legalist.agents import _next_step_after
@@ -154,7 +158,8 @@ class TestPhaseTransitionRouting:
         assert _next_step_after("opening", state) == "evidence"
         assert _next_step_after("evidence", state) == "rebuttal"
         assert _next_step_after("rebuttal", state) == "closing"
-        assert _next_step_after("closing", state) == "jury_instructions"
+        assert _next_step_after("closing", state) == "no_case"
+        assert _next_step_after("no_case", state) == "jury_instructions"
         assert _next_step_after("jury_instructions", state) == "jury_deliberation"
         # deliberation loops without verdict and rounds < 3
         assert _next_step_after("jury_deliberation", state) == "jury_deliberation"
@@ -164,7 +169,8 @@ class TestPhaseTransitionRouting:
         from legalist.agents import _next_step_after
 
         state = self.get_state(witness_queue=[], verdict="Guilty")
-        assert _next_step_after("closing", state) == "shadow_jury"
+        assert _next_step_after("closing", state) == "no_case"
+        assert _next_step_after("no_case", state) == "shadow_jury"
         assert _next_step_after("jury_deliberation", state) == "shadow_jury"
         assert _next_step_after("shadow_jury", state) == "sentencing"
         assert _next_step_after("sentencing", state) == "reporter"
@@ -376,11 +382,19 @@ class TestGraphRouting:
 
     def test_check_closing_with_verdict(self):
         from src.graph import check_closing
-        assert check_closing(self.get_state(main_verdict="Guilty")) == "shadow_jury"
+        assert check_closing(self.get_state(main_verdict="Guilty")) == "no_case"
 
     def test_check_closing_without_verdict(self):
         from src.graph import check_closing
-        assert check_closing(self.get_state()) == "jury_instructions"
+        assert check_closing(self.get_state()) == "no_case"
+
+    def test_check_no_case_with_verdict(self):
+        from src.graph import check_no_case
+        assert check_no_case(self.get_state(main_verdict="Guilty")) == "shadow_jury"
+
+    def test_check_no_case_without_verdict(self):
+        from src.graph import check_no_case
+        assert check_no_case(self.get_state()) == "jury_instructions"
 
     def test_check_verdict_reached(self):
         from src.graph import check_verdict
@@ -473,7 +487,7 @@ class TestGraphCompilation:
             "security_check", "magistrate", "discovery", "human_input",
             "motions", "opening_statements", "evidence",
             "witness_direct", "witness_cross", "witness_redirect",
-            "rebuttal_evidence", "closing_arguments", "jury_instructions",
+            "rebuttal_evidence", "closing_arguments", "no_case", "jury_instructions",
             "jury_deliberation", "shadow_jury", "sentencing", "reporter",
             "archivist", "__start__", "__end__",
         ]

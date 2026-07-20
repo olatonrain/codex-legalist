@@ -1,3 +1,4 @@
+"""Trial phase routing — step labels, node mappings, phase progression logic."""
 import re
 import uuid
 from pathlib import Path
@@ -385,6 +386,74 @@ def _extract_witnesses_fallback(text: str) -> list[str]:
     return sorted(witnesses)
 
 
+def _is_defendant_witness(witness_name: str, case_description: str) -> bool:
+    """Check if the witness being called is the defendant/accused in the case facts."""
+    if not witness_name or not case_description:
+        return False
+    name_parts = witness_name.lower().split()
+    desc_lower = case_description.lower()
+    defendant_patterns = [
+        r"(?:the\s+)?defendant\s*,?\s*" + re.escape(witness_name)[:40],
+        r"(?:the\s+)?accused\s*,?\s*" + re.escape(witness_name)[:40],
+        r"charged\s+(?:with|under).{0,80}" + re.escape(witness_name)[:40],
+        r"exercising\s+(?:his|her|their)\s+right\s+to\s+silence",
+        r"has\s+not\s+testified\s+directly",
+    ]
+    for pattern in defendant_patterns:
+        if re.search(pattern, desc_lower, re.IGNORECASE):
+            return True
+    if len(name_parts) >= 2:
+        for i in range(len(name_parts)):
+            for j in range(i + 1, len(name_parts) + 1):
+                partial = " ".join(name_parts[i:j])
+                for context in ["defendant", "accused", "charged"]:
+                    idx = desc_lower.find(context)
+                    if 0 <= idx < len(desc_lower):
+                        window = desc_lower[max(0, idx - 50) : min(len(desc_lower), idx + 150)]
+                        if partial in window:
+                            return True
+    return False
+
+
+def _is_deceased_witness(witness_name: str, case_description: str) -> bool:
+    """Check if the witness is described as deceased/killed/victim in the case facts."""
+    if not witness_name or not case_description:
+        return False
+    name_parts = witness_name.lower().split()
+    desc_lower = case_description.lower()
+    death_patterns = [
+        r"(?:was\s+)?killed",
+        r"(?:was\s+)?died",
+        r"deceased",
+        r"fatality",
+        r"fatalit",
+        r"(?:is\s+)?dead",
+        r"murdered",
+        r"victim",
+        r"death",
+        r"died in the fire",
+        r"killed in the",
+    ]
+    if len(name_parts) >= 2:
+        for i in range(len(name_parts)):
+            for j in range(i + 1, len(name_parts) + 1):
+                partial = " ".join(name_parts[i:j])
+                for death_term in death_patterns:
+                    idx = desc_lower.find(partial)
+                    if idx >= 0:
+                        window = desc_lower[max(0, idx - 80) : min(len(desc_lower), idx + 150)]
+                        if re.search(death_term, window, re.IGNORECASE):
+                            return True
+    else:
+        for death_term in death_patterns:
+            idx = desc_lower.find(death_term)
+            if idx >= 0:
+                window = desc_lower[max(0, idx - 30) : min(len(desc_lower), idx + len(witness_name) + 30)]
+                if witness_name.lower() in window:
+                    return True
+    return False
+
+
 def magistrate_node(state: TrialState) -> dict:
     """Analyses case facts, drafts clarifying questions, extracts witness names, identifies missing items."""
     logger.info("--- MAGISTRATE NODE ---")
@@ -410,6 +479,13 @@ def magistrate_node(state: TrialState) -> dict:
                 )
                 witnesses = extracted
 
+        # Filter out defendants and deceased individuals from witness queue
+        witnesses = [
+            w for w in witnesses
+            if not _is_defendant_witness(w, case_description)
+            and not _is_deceased_witness(w, case_description)
+        ]
+
         # Extract identified evidence from case text
         identified_evidence = _extract_evidence_fallback(case_description)
 
@@ -424,9 +500,16 @@ def magistrate_node(state: TrialState) -> dict:
         logger.error(f"Magistrate Error: {e}", exc_info=True)
         # Try regex fallback for everything
         case_description = state.get("case_description", "")
+        fallback_witnesses = _extract_witnesses_fallback(case_description)
+        if case_description:
+            fallback_witnesses = [
+                w for w in fallback_witnesses
+                if not _is_defendant_witness(w, case_description)
+                and not _is_deceased_witness(w, case_description)
+            ]
         return {
             "clarifying_questions": [{"question": "Can you provide more details about the key events?"}],
-            "witness_queue": _extract_witnesses_fallback(case_description),
+            "witness_queue": fallback_witnesses,
             "missing_evidence": [],
             "missing_witnesses": [],
             "identified_evidence": _extract_evidence_fallback(case_description),
@@ -800,7 +883,58 @@ def closing_arguments_node(state: TrialState) -> dict:
     transcript = []
 
     try:
-        # No-Case Submission
+        def_llm = get_llm(temperature=0.7, model=AGENT_MODELS["Defense Counsel"])
+        pros_llm = get_llm(temperature=0.7, model=AGENT_MODELS["Prosecutor"])
+        pros_msg = pros_llm.invoke(
+            [
+                SystemMessage(content=p.prosecutor_prompt(jx)),
+                HumanMessage(
+                    content=(
+                        f"Closing argument in 80 words or fewer. Be direct and persuasive.\n\n"
+                        f"Admitted evidence:\n{admitted}\n\n"
+                        f"Do NOT reference excluded evidence: {excluded}\n\n"
+                        f"Standard: {jx['legal_standard']}"
+                    )
+                ),
+            ]
+        )
+        transcript.append(AIMessage(content=pros_msg.content, name="Prosecutor"))
+
+        def_msg = def_llm.invoke(
+            [
+                SystemMessage(content=p.defense_prompt(jx)),
+                HumanMessage(
+                    content=(
+                        f'Prosecution argued:\n"{pros_msg.content}"\n\n'
+                        f"Respond in 80 words or fewer. Be direct.\n\n"
+                        f"Admitted evidence:\n{admitted}\n\n"
+                        f"Do NOT reference excluded evidence: {excluded}\n\n"
+                        f"Standard: {jx['legal_standard']}"
+                    )
+                ),
+            ]
+        )
+        transcript.append(AIMessage(content=def_msg.content, name="Defense Counsel"))
+
+        return {"transcript": transcript}
+    except Exception as e:
+        logger.error(f"Closing Arguments Error: {e}", exc_info=True)
+        return {
+            "transcript": [
+                AIMessage(content=f"[Closing arguments could not be generated: {e}]", name="System"),
+            ]
+        }
+
+
+def no_case_node(state: TrialState) -> dict:
+    """Defence may move for judgment of acquittal (Rule 29 / no-case submission) after closing arguments."""
+    logger.info("--- NO-CASE SUBMISSION ---")
+    jx = _get_jx(state)
+    admitted = state.get("admitted_evidence", [])
+    fact_sheet = state.get("fact_sheet", state.get("case_description", ""))
+    transcript = []
+
+    try:
         def_llm = get_llm(temperature=0.7, model=AGENT_MODELS["Defense Counsel"])
         no_case_motion = def_llm.invoke(
             [
@@ -849,44 +983,12 @@ def closing_arguments_node(state: TrialState) -> dict:
                 transcript.append(AIMessage(content=dismiss_msg, name="Judge"))
                 return {"transcript": transcript, "main_verdict": early_verdict}
 
-        pros_llm = get_llm(temperature=0.7, model=AGENT_MODELS["Prosecutor"])
-        pros_msg = pros_llm.invoke(
-            [
-                SystemMessage(content=p.prosecutor_prompt(jx)),
-                HumanMessage(
-                    content=(
-                        f"Closing argument in 80 words or fewer. Be direct and persuasive.\n\n"
-                        f"Admitted evidence:\n{admitted}\n\n"
-                        f"Do NOT reference excluded evidence: {excluded}\n\n"
-                        f"Standard: {jx['legal_standard']}"
-                    )
-                ),
-            ]
-        )
-        transcript.append(AIMessage(content=pros_msg.content, name="Prosecutor"))
-
-        def_msg = def_llm.invoke(
-            [
-                SystemMessage(content=p.defense_prompt(jx)),
-                HumanMessage(
-                    content=(
-                        f'Prosecution argued:\n"{pros_msg.content}"\n\n'
-                        f"Respond in 80 words or fewer. Be direct.\n\n"
-                        f"Admitted evidence:\n{admitted}\n\n"
-                        f"Do NOT reference excluded evidence: {excluded}\n\n"
-                        f"Standard: {jx['legal_standard']}"
-                    )
-                ),
-            ]
-        )
-        transcript.append(AIMessage(content=def_msg.content, name="Defense Counsel"))
-
         return {"transcript": transcript}
     except Exception as e:
-        logger.error(f"Closing Arguments Error: {e}", exc_info=True)
+        logger.error(f"No-Case Submission Error: {e}", exc_info=True)
         return {
             "transcript": [
-                AIMessage(content=f"[Closing arguments could not be generated: {e}]", name="System"),
+                AIMessage(content=f"[No-case submission could not be completed: {e}]", name="System"),
             ]
         }
 

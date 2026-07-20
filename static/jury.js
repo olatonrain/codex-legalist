@@ -1,7 +1,7 @@
 "use strict";
 // ── JURY module — extracted from static/app.js ──
 
-import { State, $, $$, showToast, escapeHtml, sleep, formatDuration, classifyStance, extractExhibitLabel, isTrialConcluded, AGENT_ABBR, AGENT_COLOR, AV_CLASS, JX_DATA, safeJson, toggleTheme } from './state.js';
+import { State, $, $$, showToast, escapeHtml, sleep, formatDuration, classifyStance, extractExhibitLabel, isTrialConcluded, getAgentAbbr, getAgentColor, getAgentAvClass, JX_DATA, safeJson, toggleTheme } from './state.js';
 import { addTranscriptEntry } from './transcript.js';
 
 
@@ -479,7 +479,7 @@ function renderDeliberationTranscript() {
   if (!entries.length && shadowNarrative.length) {
     el.innerHTML = shadowNarrative.map(s => {
       const agentName = s.name || "Shadow Juror";
-      const color = AGENT_COLOR[agentName] || "var(--gold)";
+      const color = getAgentColor(agentName) || "var(--gold)";
       return `
         <div class="bubble" style="border-left-color:${color};margin-bottom:10px">
           <div class="speaker" style="color:${color}">${escapeHtml(agentName)} <span class="tag" style="background:rgba(0,0,0,0.06);color:${color}">Shadow Jury</span></div>
@@ -493,7 +493,7 @@ function renderDeliberationTranscript() {
     return;
   }
   el.innerHTML = entries.map(e => {
-    const color = AGENT_COLOR[e.agent] || "var(--gold)";
+    const color = getAgentColor(e.agent) || "var(--gold)";
     return `
       <div class="bubble" style="border-left-color:${color};margin-bottom:10px">
         <div class="speaker" style="color:${color}">${escapeHtml(e.agent)} <span class="tag" style="background:rgba(0,0,0,0.06);color:${color}">${escapeHtml(e.phase || "Deliberation")}</span></div>

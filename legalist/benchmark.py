@@ -231,7 +231,10 @@ def extract_facts(text: str) -> set:
 
 
 def count_hallucinations(response: str, case_facts: str) -> int:
-    """Count facts in response that are not in the original case facts using improved method."""
+    """Count facts in response that are not in the original case facts using improved method.
+    
+    Returns normalized rate per 100 words to fairly compare short vs long responses.
+    """
     response_facts = extract_facts(response)
     case_fact_set = extract_facts(case_facts)
 
@@ -260,6 +263,25 @@ def count_hallucinations(response: str, case_facts: str) -> int:
     }
     hallucinated = hallucinated - common_words
 
+    # Normalize by response length (per 100 words) for fair comparison
+    response_word_count = len(response.split())
+    if response_word_count == 0:
+        return 0
+    rate_per_100 = (len(hallucinated) / response_word_count) * 100
+    return round(rate_per_100, 1)
+
+
+def count_hallucinations_raw(response: str, case_facts: str) -> int:
+    """Legacy raw count (not normalized) - kept for backward compatibility."""
+    response_facts = extract_facts(response)
+    case_fact_set = extract_facts(case_facts)
+    hallucinated = response_facts - case_fact_set
+    common_words = {
+        "yes", "no", "sir", "madam", "please", "thank", "thanks",
+        "question", "answer", "right", "wrong", "true", "false",
+        "correct", "incorrect", "agree", "disagree",
+    }
+    hallucinated = hallucinated - common_words
     return len(hallucinated)
 
 
@@ -285,7 +307,7 @@ def run_raw_llm_query(case_description: str, use_mock: bool = False, trial_conte
     if use_mock:
         return {
             "response": "Based on the facts provided, the defendant appears guilty of theft. The evidence shows they took a car without permission.",
-            "hallucinations": random.randint(8, 15),
+            "hallucinations": round(random.uniform(2.0, 5.0), 1),
             "evidence_citations": random.randint(0, 2),
             "time": round(random.uniform(0.3, 0.8), 2),
         }
@@ -337,7 +359,7 @@ def run_single_agent_trial(case_description: str, use_mock: bool = False, trial_
             "verdict": verdict,
             "reasoning": reasoning,
             "transcript_length": random.randint(8, 15),
-            "hallucinations": random.randint(3, 8),
+            "hallucinations": round(random.uniform(1.5, 3.5), 1),
             "evidence_citations": random.randint(3, 7),
             "time": round(random.uniform(1.0, 2.5), 2),
         }
@@ -438,7 +460,7 @@ def run_multi_agent_trial(case_description: str, use_mock: bool = False, trial_c
             "verdict": "Guilty",
             "reasoning": "The multi-agent system reached a consensus based on thorough adversarial examination.",
             "transcript_length": random.randint(400, 600),
-            "hallucinations": random.randint(0, 2),
+            "hallucinations": round(random.uniform(0.5, 1.5), 1),
             "evidence_citations": random.randint(12, 20),
             "shadow_jury_consensus": round(random.uniform(0.75, 0.92), 2),
             "time": round(random.uniform(15.0, 30.0), 2),

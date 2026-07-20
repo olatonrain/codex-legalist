@@ -1,3 +1,4 @@
+"""Witness examination nodes — direct examination, cross-examination, fact-checking."""
 import json
 import re
 
@@ -424,8 +425,10 @@ def _examination_loop(
     q_num = 1
     sustained_in_a_row = 0
     total_attempts = 0
-    max_total_attempts = max_q * 3  # hard safety cap — prevents infinite loops
+    max_total_attempts = max_q * 3
     max_sustained_streak = 3
+    last_fc_correction = ""
+    fc_repeat_count = 0
 
     while q_num <= max_q and total_attempts < max_total_attempts:
         total_attempts += 1
@@ -601,6 +604,21 @@ def _examination_loop(
             continue
 
         if not fc.content.strip().upper().startswith("PASS"):
+            fc_text = fc.content.strip()[:80]
+            if fc_text == last_fc_correction:
+                fc_repeat_count += 1
+            else:
+                fc_repeat_count = 0
+                last_fc_correction = fc_text
+            if fc_repeat_count >= 3:
+                transcript.append(
+                    AIMessage(
+                        content=f"[{witness_name} skipped — unable to provide admissible testimony]",
+                        name="System",
+                    )
+                )
+                qa_log.append({"q": content, "a": "[Witness skipped]"})
+                break
             transcript.append(AIMessage(content=fc.content, name="Fact Checker"))
             try:
                 a = witness_llm.invoke(
@@ -808,11 +826,10 @@ def witness_direct(state: TrialState) -> dict:
     is_islamic = "Islamic" in jx["system"]
     is_civil = "Civil Law" in jx["system"]
     oath = oath_phrases["secular"] if (is_civil or is_islamic) else oath_phrases["judeo_christian"]
-    court_address = jx["address"].split(";")[0].strip()
     transcript.append(AIMessage(content=f"The Clerk administers the oath to {current_witness}.", name="Clerk"))
     transcript.append(AIMessage(content=oath["clerk"], name="Clerk"))
     transcript.append(AIMessage(content=oath["witness"], name="Witness"))
-    transcript.append(AIMessage(content=f"Please be seated. {court_address}, your witness is sworn.", name="Judge"))
+    transcript.append(AIMessage(content="Please be seated. Counsel, your witness is sworn.", name="Judge"))
 
     # Visual phase transition banner
     if jx["cross"]:
