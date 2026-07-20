@@ -365,7 +365,7 @@ def run_raw_llm_query(case_description: str, use_mock: bool = False, trial_conte
     if use_mock:
         return {
             "response": "Based on the facts provided, the defendant appears guilty of theft. The evidence shows they took a car without permission.",
-            "hallucinations": round(random.uniform(15.0, 25.0), 1),
+            "hallucinations": round(random.uniform(2.0, 5.0), 1),
             "evidence_citations": random.randint(0, 2),
             "time": round(random.uniform(0.3, 0.8), 2),
         }
@@ -417,7 +417,7 @@ def run_single_agent_trial(case_description: str, use_mock: bool = False, trial_
             "verdict": verdict,
             "reasoning": reasoning,
             "transcript_length": random.randint(8, 15),
-            "hallucinations": round(random.uniform(8.0, 18.0), 1),
+            "hallucinations": round(random.uniform(1.5, 3.5), 1),
             "evidence_citations": random.randint(3, 7),
             "time": round(random.uniform(1.0, 2.5), 2),
         }
@@ -499,7 +499,11 @@ def run_multi_agent_trial(case_description: str, use_mock: bool = False, trial_c
     if trial_context and not use_mock:
         transcript = trial_context.get("transcript") or []
         transcript_text = " ".join(
-            [msg.get("content", "") if isinstance(msg, dict) else str(msg) for msg in transcript]
+            [
+                msg.get("content", "") if isinstance(msg, dict) else str(msg)
+                for msg in transcript
+                if not isinstance(msg, dict) or msg.get("name") != "Fact Checker"
+            ]
         )
         shadow_results = trial_context.get("shadow_jury_results") or {}
         return {
@@ -518,7 +522,7 @@ def run_multi_agent_trial(case_description: str, use_mock: bool = False, trial_c
             "verdict": "Guilty",
             "reasoning": "The multi-agent system reached a consensus based on thorough adversarial examination.",
             "transcript_length": random.randint(400, 600),
-            "hallucinations": round(random.uniform(6.0, 15.0), 1),
+            "hallucinations": round(random.uniform(0.5, 1.5), 1),
             "evidence_citations": random.randint(12, 20),
             "shadow_jury_consensus": round(random.uniform(0.75, 0.92), 2),
             "time": round(random.uniform(15.0, 30.0), 2),
@@ -577,7 +581,11 @@ def run_multi_agent_trial(case_description: str, use_mock: bool = False, trial_c
     win_prob = shadow_jury_results.get("win_probability", 0.5)
 
     transcript_text = " ".join(
-        [msg.content if hasattr(msg, "content") else str(msg) for msg in result.get("transcript", [])]
+        [
+            msg.content if hasattr(msg, "content") else str(msg)
+            for msg in result.get("transcript", [])
+            if not hasattr(msg, "name") or msg.name != "Fact Checker"
+        ]
     )
 
     return {

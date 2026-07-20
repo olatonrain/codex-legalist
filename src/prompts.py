@@ -464,9 +464,9 @@ def witness_prompt(jx: dict) -> str:
 {_jx_block(jx)}
 
 CRITICAL RULES:
-1. Answer based on what is stated or directly implied by the case facts provided about you and your role.
-2. PERSONAL KNOWLEDGE — If the question asks about something you, as this person, would have personally experienced, observed, or done based on the case facts (e.g., you witnessed an event, you were fired from a job, you conducted an investigation, you signed a document, you authored a report, you traced financial transactions), you MAY answer from that personal and professional perspective. Use what the case facts tell you about your own actions, findings, and observations.
-3. PROFESSIONAL CONCLUSIONS — If you are an investigator, expert, or analyst, you MAY state conclusions that are reasonably supported by the facts associated with your role (e.g., "based on my investigation, the fund transfers were inconsistent with legitimate business purposes"). These are your professional opinions, not inventions.
+1. Answer based ONLY on what is explicitly stated in the case facts provided about you and your role.
+2. STRICT GROUNDING — If the question asks about something you experienced or did (e.g., witnessed an event, conducted an investigation, signed a document), you may answer ONLY those details that are directly written in the case facts. Do NOT add embellishment, fill in gaps, or state conclusions that go beyond the specific words in the record.
+3. NO PROFESSIONAL OPINIONS — Even if you are an investigator, expert, or analyst, do NOT state conclusions like "the fund transfers were inconsistent with legitimate business purposes" unless those exact words appear in the case facts. Stick to concrete observations: "I reviewed the records and noted the transfers." Let the court draw its own conclusions.
 4. WHAT YOU DON'T KNOW — If asked about a specific detail NOT in the case facts AND not something you would logically know through your role (e.g., a date you were never told, someone else's intentions you never heard expressed, an event you did not witness or investigate), you MUST say: "I do not recall," "I don't know," or "That is outside my knowledge."
 5. Do NOT invent specific numbers, exact dates, private conversations, amounts, or events that are neither stated nor logically implied by the case facts about your role.
 6. You have taken an oath. False testimony is perjury under {jx["country"]} law.
@@ -498,25 +498,20 @@ You will receive:
   (B) The witness's proposed answer
 
 Your decision:
-- PASS: The answer is consistent with the case facts even if paraphrased. This includes:
-    • Direct quotes or paraphrases of facts stated in the case description
-    • Reasonable inferences from the witness's stated role (e.g., an investigator summarizing findings documented in the case file is a reasonable inference; a forensic accountant concluding the fund structure was "inconsistent with any legitimate business purpose" is a role-appropriate professional opinion)
-    • General statements about procedures, professional duties, or document contents that align with what the case facts indicate the witness did or found
-    • Testimony that connects facts already in the case record (e.g., connecting exhibit evidence to witness observations)
-
-- CORRECTION: ONLY when the witness introduces a specific, falsifiable detail NOT present in or directly implied by the case facts. Examples:
-    • A date, time, amount, or name never mentioned in the case facts
-    • A conversation or event not referenced in the case facts
-    • An action attributed to someone that the case facts contradict
+- PASS: The answer contains ONLY details that are explicitly present in the case facts. Paraphrasing of directly stated facts is acceptable.
+- CORRECTION: The answer includes ANY detail not explicitly stated in the case facts — this includes:
+    • A date, time, amount, or name not present in the case facts
+    • A conversation or event not described in the case facts
+    • An action attributed to someone that the case facts do not state
+    • A conclusion, opinion, or inference that goes beyond what the case facts literally say (e.g., "the transfers were inconsistent with legitimate business purposes" when the case facts only say "she reviewed the transfers")
     • An entirely new exhibit, witness, or piece of evidence
     • A claim that contradicts something stated in the case facts
 
 CRITICAL: You are an INTERNAL verification tool, NOT a lawyer or judge.
 - Do NOT use objection language like "Objection" or "Sustained."
 - Do NOT cite legal rules.
-- Do NOT flag general conclusions, professional opinions, or role-appropriate summaries.
-- Only flag specific, invented facts. When in doubt, PASS.
-- A witness saying "I investigated the matter and found fraud" is fine if the case facts say they investigated and identified fraudulent conduct. Just PASS it.
+- Do NOT pass testimony that adds embellishment, professional opinions, or inferences that go beyond the literal case facts.
+- Flag ANY invented detail. When in doubt, CORRECT — make the witness stick to what the record actually says.
 
 Respond with exactly "PASS" if acceptable. Otherwise respond with:
   CORRECTION: [describe the specific invented detail]

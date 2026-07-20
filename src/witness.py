@@ -682,59 +682,37 @@ def _is_defendant_witness(witness_name: str, case_description: str) -> bool:
 
 
 def _extract_witness_context(witness_name: str, case_description: str) -> str:
-    """Extract case-fact context lines relevant to a specific witness for topic filtering."""
+    """Format case facts for a specific witness with role hint, passing the full context."""
     if not witness_name or not case_description:
-        return case_description[:200]
+        return (case_description or "")[:2000]
+
     parts = witness_name.split()
     if len(parts) < 2:
-        return case_description[:200]
+        return case_description[:2000]
 
+    # Identify the witness's role from the case facts
     sentences = re.split(r"(?<=[.!?])\s+", case_description)
-    relevant = []
-    search_terms = [
-        witness_name.lower(),
-        parts[0].lower(),
-        parts[-1].lower(),
-    ]
-    # Also include role terms if found in nearby sentences
     role_terms = []
-
     for s in sentences:
         s_lower = s.lower()
-        if any(term in s_lower for term in search_terms):
-            relevant.append(s)
-            # Try to capture the witness role
-            for role_kw in [
-                "witness",
-                "will testify",
-                "testified",
-                "investigator",
-                "expert",
-                "accountant",
-                "inspector",
-                "whistleblower",
-                "officer",
-                "analyst",
-                "defendant",
-                "victim",
-                "manager",
-                "director",
-                "employee",
-            ]:
-                if role_kw in s_lower and role_kw not in role_terms:
-                    role_terms.append(role_kw)
+        for role_kw in [
+            "witness", "will testify", "testified", "investigator",
+            "expert", "accountant", "inspector", "whistleblower",
+            "officer", "analyst", "defendant", "victim",
+            "manager", "director", "employee",
+        ]:
+            if role_kw in s_lower and role_kw not in role_terms:
+                role_terms.append(role_kw)
 
-    if len(relevant) < 2:
-        return case_description[:300]
-
-    context = " ".join(relevant[:5])
     role_hint = ""
     if role_terms:
-        role_hint = f"\nThis witness's role: {', '.join(role_terms[:3])}. "
+        role_hint = f"Your role: {', '.join(role_terms[:3])}. "
 
     return (
-        f"{role_hint}Focus your examination on the following case facts relevant to {witness_name} "
-        f"and their stated role. Do NOT ask about topics that another witness is better positioned to address:\n\n{context}"
+        f"{role_hint}Below are the full case facts for context. "
+        f"Answer based ONLY on what is stated or directly implied in this record. "
+        f"Do NOT invent details, dates, names, or events that are not present.\n\n"
+        f"Full Case Record:\n{case_description}"
     )
 
 
