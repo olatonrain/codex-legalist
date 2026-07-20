@@ -35,6 +35,8 @@
 
 _(Hosted on Alibaba Cloud ECS)_
 
+**Backup (Vercel):** [https://codex-legalist.vercel.app/](https://codex-legalist.vercel.app/)
+
 ---
 
 ## Demo Video
